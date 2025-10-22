@@ -1,0 +1,25 @@
+{
+  "buildCommand": "npm run build",
+  "devCommand": "npm run dev",
+  "installCommand": "npm install",
+  "framework": "nextjs",
+  "regions": ["iad1"],
+  "env": {
+    "BASEROW_BASE_URL": "@baserow_base_url",
+    "BASEROW_TOKEN": "@baserow_token",
+    "BASEROW_TABLE_ID_TASKS": "@baserow_table_id_tasks",
+    "BASEROW_TABLE_ID_STATUSES": "@baserow_table_id_statuses",
+    "DATA_PROVIDER": "baserow"
+  },
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store, no-cache, must-revalidate"
+        }
+      ]
+    }
+  ]
+}

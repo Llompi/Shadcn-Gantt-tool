@@ -145,6 +145,57 @@ pnpm dev
 
 Open [http://localhost:3000](http://localhost:3000) to see the home page, then navigate to [http://localhost:3000/gantt](http://localhost:3000/gantt) to view your Gantt chart.
 
+## Deployment
+
+### Deploy to Vercel (Recommended)
+
+The easiest way to deploy this application is using [Vercel](https://vercel.com):
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/yourusername/Shadcn-Gantt-tool)
+
+#### Quick Deploy Steps:
+
+1. **Click the "Deploy" button above** or go to [vercel.com/new](https://vercel.com/new)
+
+2. **Import your repository** - Vercel will auto-detect Next.js
+
+3. **Add Environment Variables** in the Vercel dashboard:
+   ```
+   BASEROW_BASE_URL=https://api.baserow.io
+   BASEROW_TOKEN=your_database_token_here
+   BASEROW_TABLE_ID_TASKS=12345
+   BASEROW_TABLE_ID_STATUSES=12346
+   DATA_PROVIDER=baserow
+   BASEROW_WEBHOOK_SECRET=your_webhook_secret_here
+   ```
+
+4. **Click Deploy** - Your app will be live in ~2 minutes at `your-project.vercel.app`
+
+5. **Update Baserow Webhook URL** to `https://your-project.vercel.app/api/webhooks/baserow`
+
+📖 **Detailed Instructions**: See [VERCEL_DEPLOYMENT.md](./docs/VERCEL_DEPLOYMENT.md) for complete deployment guide
+
+✅ **Deployment Checklist**: Use [DEPLOYMENT_CHECKLIST.md](./docs/DEPLOYMENT_CHECKLIST.md) to ensure nothing is missed
+
+#### Why Vercel?
+
+- ✅ **Zero Configuration**: Automatic Next.js detection
+- ✅ **Free Tier**: Perfect for personal projects
+- ✅ **Automatic HTTPS**: SSL certificates included
+- ✅ **Edge Network**: Fast global performance
+- ✅ **Preview Deployments**: Every PR gets a preview URL
+- ✅ **Environment Variables**: Secure credential management
+
+### Other Deployment Options
+
+This Next.js app can also be deployed to:
+- **Docker**: Create a `Dockerfile` with `node:18-alpine` base
+- **Netlify**: Similar to Vercel with automatic detection
+- **Railway**: One-click deploy with database hosting
+- **Self-hosted**: Use `npm run build && npm start`
+
+See the [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more options.
+
 ## Setting up Webhooks (Optional)
 
 Webhooks enable real-time updates when data changes in Baserow.
