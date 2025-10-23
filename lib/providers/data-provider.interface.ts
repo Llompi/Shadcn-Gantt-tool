@@ -35,7 +35,7 @@ export interface IDataProvider {
  * Provider configuration
  */
 export interface ProviderConfig {
-  type: "baserow" | "postgres"
+  type: "baserow" | "postgres" | "demo"
   baseUrl?: string
   token?: string
   database?: string
