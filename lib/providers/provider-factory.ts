@@ -1,13 +1,18 @@
 import { IDataProvider, ProviderConfig } from "./data-provider.interface"
 import { BaserowProvider } from "./baserow/baserow-provider"
+import { DemoProvider } from "./demo/demo-provider"
 
 /**
  * Factory to create the appropriate data provider based on configuration
  */
 export function createDataProvider(config?: ProviderConfig): IDataProvider {
-  const providerType = config?.type || (process.env.DATA_PROVIDER as "baserow" | "postgres") || "baserow"
+  const providerType = config?.type || (process.env.DATA_PROVIDER as "baserow" | "postgres" | "demo") || "demo"
 
   switch (providerType) {
+    case "demo":
+      // Use demo provider with sample data
+      return new DemoProvider()
+
     case "baserow":
       return new BaserowProvider({
         baseUrl: config?.baseUrl || process.env.BASEROW_BASE_URL || "https://api.baserow.io",
