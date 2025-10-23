@@ -188,60 +188,60 @@ export default function GanttPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto py-8">
-        <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-3xl font-bold">Project Gantt Chart</h1>
-          <div className="flex gap-2">
-            <GanttCreateMarkerTrigger />
-            <button
-              onClick={loadData}
-              className="px-4 py-2 border rounded hover:bg-accent transition-colors"
-            >
-              Refresh
-            </button>
-          </div>
-        </div>
-
-        {tasks.length === 0 ? (
-          <div className="border rounded-lg p-12 text-center">
-            <p className="text-lg text-muted-foreground mb-4">
-              No tasks yet. Create your first task to get started!
-            </p>
-            <GanttCreateMarkerTrigger />
-          </div>
-        ) : (
-          <div className="border rounded-lg overflow-hidden shadow-lg">
-            <GanttProvider
-              tasks={tasks}
-              onTaskMove={handleTaskMove}
-              onTaskCreate={handleTaskCreate}
-              onTaskClick={handleTaskClick}
-            >
-              <GanttHeader />
-              <GanttFeatureList />
-            </GanttProvider>
-          </div>
-        )}
-
-        {/* Status Legend */}
-        {statuses.length > 0 && (
-          <div className="mt-6 p-4 border rounded-lg">
-            <h3 className="text-sm font-semibold mb-2">Status Legend</h3>
-            <div className="flex flex-wrap gap-3">
-              {statuses.map((status) => (
-                <div key={status.id} className="flex items-center gap-2">
-                  <div
-                    className="w-4 h-4 rounded"
-                    style={{ backgroundColor: status.color || "#3b82f6" }}
-                  />
-                  <span className="text-sm">{status.name}</span>
-                </div>
-              ))}
+    <GanttProvider
+      tasks={tasks}
+      onTaskMove={handleTaskMove}
+      onTaskCreate={handleTaskCreate}
+      onTaskClick={handleTaskClick}
+    >
+      <div className="min-h-screen bg-background">
+        <div className="container mx-auto py-8">
+          <div className="mb-6 flex items-center justify-between">
+            <h1 className="text-3xl font-bold">Project Gantt Chart</h1>
+            <div className="flex gap-2">
+              <GanttCreateMarkerTrigger />
+              <button
+                onClick={loadData}
+                className="px-4 py-2 border rounded hover:bg-accent transition-colors"
+              >
+                Refresh
+              </button>
             </div>
           </div>
-        )}
+
+          {tasks.length === 0 ? (
+            <div className="border rounded-lg p-12 text-center">
+              <p className="text-lg text-muted-foreground mb-4">
+                No tasks yet. Create your first task to get started!
+              </p>
+              <GanttCreateMarkerTrigger />
+            </div>
+          ) : (
+            <div className="border rounded-lg overflow-hidden shadow-lg">
+              <GanttHeader />
+              <GanttFeatureList />
+            </div>
+          )}
+
+          {/* Status Legend */}
+          {statuses.length > 0 && (
+            <div className="mt-6 p-4 border rounded-lg">
+              <h3 className="text-sm font-semibold mb-2">Status Legend</h3>
+              <div className="flex flex-wrap gap-3">
+                {statuses.map((status) => (
+                  <div key={status.id} className="flex items-center gap-2">
+                    <div
+                      className="w-4 h-4 rounded"
+                      style={{ backgroundColor: status.color || "#3b82f6" }}
+                    />
+                    <span className="text-sm">{status.name}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </GanttProvider>
   )
 }
