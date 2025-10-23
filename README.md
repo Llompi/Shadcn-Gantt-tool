@@ -1,5 +1,7 @@
 # Gantt Project Manager
 
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/Llompi/Shadcn-Gantt-tool)
+
 A modern, flexible Gantt chart tool built with Next.js, shadcn/ui, and Tailwind CSS. Transform your Baserow databases into powerful project management tools with visual Gantt charts, real-time updates via webhooks, and a clean, intuitive interface.
 
 ## Features
