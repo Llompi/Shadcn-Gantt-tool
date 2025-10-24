@@ -1,0 +1,197 @@
+[
+  {
+    "id": "1",
+    "name": "Project Planning",
+    "startAt": "2024-01-01",
+    "endAt": "2024-01-05",
+    "status": {
+      "id": "1",
+      "name": "Done",
+      "color": "#22c55e"
+    },
+    "owner": "Alice",
+    "group": "Phase 1: Foundation",
+    "progress": 100,
+    "description": "Define project scope and objectives"
+  },
+  {
+    "id": "2",
+    "name": "Design System Setup",
+    "startAt": "2024-01-03",
+    "endAt": "2024-01-10",
+    "status": {
+      "id": "1",
+      "name": "Done",
+      "color": "#22c55e"
+    },
+    "owner": "Bob",
+    "group": "Phase 1: Foundation",
+    "progress": 100,
+    "description": "Create design tokens and component library"
+  },
+  {
+    "id": "3",
+    "name": "Database Design",
+    "startAt": "2024-01-08",
+    "endAt": "2024-01-15",
+    "status": {
+      "id": "1",
+      "name": "Done",
+      "color": "#22c55e"
+    },
+    "owner": "Alice",
+    "group": "Phase 2: Backend",
+    "progress": 100,
+    "description": "Design database schema and relationships"
+  },
+  {
+    "id": "4",
+    "name": "API Development",
+    "startAt": "2024-01-12",
+    "endAt": "2024-01-26",
+    "status": {
+      "id": "2",
+      "name": "In Progress",
+      "color": "#3b82f6"
+    },
+    "owner": "Bob",
+    "group": "Phase 2: Backend",
+    "progress": 75,
+    "description": "Build REST API endpoints"
+  },
+  {
+    "id": "5",
+    "name": "Authentication System",
+    "startAt": "2024-01-20",
+    "endAt": "2024-02-03",
+    "status": {
+      "id": "2",
+      "name": "In Progress",
+      "color": "#3b82f6"
+    },
+    "owner": "Charlie",
+    "group": "Phase 2: Backend",
+    "progress": 60,
+    "description": "Implement OAuth and JWT authentication"
+  },
+  {
+    "id": "6",
+    "name": "Component Library",
+    "startAt": "2024-01-22",
+    "endAt": "2024-02-05",
+    "status": {
+      "id": "2",
+      "name": "In Progress",
+      "color": "#3b82f6"
+    },
+    "owner": "Bob",
+    "group": "Phase 3: Frontend",
+    "progress": 45,
+    "description": "Build reusable UI components"
+  },
+  {
+    "id": "7",
+    "name": "Dashboard UI",
+    "startAt": "2024-01-28",
+    "endAt": "2024-02-12",
+    "status": {
+      "id": "3",
+      "name": "To Do",
+      "color": "#94a3b8"
+    },
+    "owner": "Alice",
+    "group": "Phase 3: Frontend",
+    "progress": 0,
+    "description": "Create main dashboard interface"
+  },
+  {
+    "id": "8",
+    "name": "User Settings",
+    "startAt": "2024-02-05",
+    "endAt": "2024-02-15",
+    "status": {
+      "id": "3",
+      "name": "To Do",
+      "color": "#94a3b8"
+    },
+    "owner": "Charlie",
+    "group": "Phase 3: Frontend",
+    "progress": 0,
+    "description": "Implement user preferences and settings"
+  },
+  {
+    "id": "9",
+    "name": "Integration Testing",
+    "startAt": "2024-02-10",
+    "endAt": "2024-02-20",
+    "status": {
+      "id": "3",
+      "name": "To Do",
+      "color": "#94a3b8"
+    },
+    "owner": "Bob",
+    "group": "Phase 4: Testing",
+    "progress": 0,
+    "description": "End-to-end testing and bug fixes"
+  },
+  {
+    "id": "10",
+    "name": "Performance Optimization",
+    "startAt": "2024-02-15",
+    "endAt": "2024-02-25",
+    "status": {
+      "id": "3",
+      "name": "To Do",
+      "color": "#94a3b8"
+    },
+    "owner": "Alice",
+    "group": "Phase 4: Testing",
+    "progress": 0,
+    "description": "Optimize load times and resource usage"
+  },
+  {
+    "id": "11",
+    "name": "Documentation",
+    "startAt": "2024-02-20",
+    "endAt": "2024-03-01",
+    "status": {
+      "id": "3",
+      "name": "To Do",
+      "color": "#94a3b8"
+    },
+    "owner": "Charlie",
+    "group": "Phase 5: Launch",
+    "progress": 0,
+    "description": "Write user guides and API documentation"
+  },
+  {
+    "id": "12",
+    "name": "Beta Testing",
+    "startAt": "2024-02-25",
+    "endAt": "2024-03-10",
+    "status": {
+      "id": "3",
+      "name": "To Do",
+      "color": "#94a3b8"
+    },
+    "owner": "Alice",
+    "group": "Phase 5: Launch",
+    "progress": 0,
+    "description": "Conduct user acceptance testing"
+  },
+  {
+    "id": "13",
+    "name": "Production Deployment",
+    "startAt": "2024-03-08",
+    "endAt": "2024-03-15",
+    "status": {
+      "id": "3",
+      "name": "To Do",
+      "color": "#94a3b8"
+    },
+    "owner": "Bob",
+    "group": "Phase 5: Launch",
+    "progress": 0,
+    "description": "Deploy to production environment"
+  }
+]

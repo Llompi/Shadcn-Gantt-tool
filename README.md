@@ -4,9 +4,46 @@
 
 A modern, flexible Gantt chart tool built with Next.js, shadcn/ui, and Tailwind CSS. Transform your Baserow databases into powerful project management tools with visual Gantt charts, real-time updates via webhooks, and a clean, intuitive interface.
 
+## Deployment Modes
+
+This project officially supports **two distinct deployment strategies** to meet different use cases:
+
+### 🚀 Easy Mode (API Connector)
+**Best for:** Rapid prototyping, demos, public projects, and general use cases
+
+- Connect to an existing Baserow or PostgreSQL instance via API
+- **UI-based configuration**: Adjust connection settings live through the interface
+  - Edit Baserow API credentials without redeploying
+  - Switch between workspaces, tables, and views on-the-fly
+  - Test connections and browse available data sources
+- **Flexible demo data**: Use built-in samples, upload CSV/JSON files, or connect to live data
+- Quick deployment to Vercel, Netlify, or similar platforms
+- Minimal infrastructure requirements
+- Perfect for getting started quickly
+
+**[Quick Start Guide](#getting-started)** | **[Deploy to Vercel](#deploy-to-vercel-recommended)** | **[Demo Mode Guide](./docs/DEMO_MODE.md)**
+
+### 🔒 Install Mode (Secure Self-Hosted)
+**Best for:** Sensitive data, CUI/CMMC compliance, air-gapped environments
+
+- Self-contained Docker Compose deployment
+- All services run in an isolated, secure environment
+- Direct database connections (no external APIs)
+- FIPS-compliant components available
+- Designed for Windows environments with BitLocker encryption
+
+**[Secure Deployment Guide](./docs/CMMC_DEPLOYMENT.md)** *(Coming Soon)*
+
+---
+
 ## Features
 
 - **API-Adapter Architecture**: Agnostic design allows easy switching between data providers (Baserow, PostgreSQL, etc.)
+- **UI-Based Configuration**: Live editing of connection settings, workspace, table, and view selection through the interface
+- **Flexible Data Sources**:
+  - Connect to Baserow or PostgreSQL via API
+  - Use built-in demo data for testing
+  - Upload custom CSV or JSON files
 - **Server-Side Security**: All database credentials and API tokens are kept server-side, never exposed to the browser
 - **Real-time Updates**: Webhook support for instant synchronization when data changes in Baserow
 - **Drag & Drop**: Intuitive task manipulation with drag-to-move and resize handles
@@ -371,7 +408,17 @@ See [LICENSE](./LICENSE) file for details.
 
 ## Roadmap
 
-- [ ] PostgreSQL provider implementation
+### Current Focus (Phase 1)
+- [ ] **PostgreSQL provider implementation** *(High Priority)*
+- [ ] **UI-based configuration interface** *(High Priority)*
+  - [ ] Live connection settings editor
+  - [ ] Workspace/table/view selector for Baserow
+  - [ ] Connection testing and validation
+  - [ ] CSV/JSON file upload for demo data
+- [ ] Docker Compose setup for secure self-hosted deployment
+- [ ] FIPS-compliant component integration
+
+### Future Enhancements (Phase 2+)
 - [ ] Task dependencies visualization
 - [ ] Milestone markers
 - [ ] Resource allocation view

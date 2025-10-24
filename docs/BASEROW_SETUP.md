@@ -1,5 +1,9 @@
 # Baserow Setup Guide
 
+> **Note**: This guide applies to both deployment modes:
+> - **Easy Mode**: Use cloud-hosted Baserow (baserow.io)
+> - **Install Mode**: Use self-hosted Baserow (see [CMMC_DEPLOYMENT.md](./CMMC_DEPLOYMENT.md))
+
 This guide walks you through setting up Baserow for use with the Gantt Project Manager.
 
 ## Step 1: Create a Baserow Account
