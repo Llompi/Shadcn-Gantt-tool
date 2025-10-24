@@ -4,6 +4,33 @@
 
 A modern, flexible Gantt chart tool built with Next.js, shadcn/ui, and Tailwind CSS. Transform your Baserow databases into powerful project management tools with visual Gantt charts, real-time updates via webhooks, and a clean, intuitive interface.
 
+## Deployment Modes
+
+This project officially supports **two distinct deployment strategies** to meet different use cases:
+
+### 🚀 Easy Mode (API Connector)
+**Best for:** Rapid prototyping, demos, public projects, and general use cases
+
+- Connect to an existing Baserow or PostgreSQL instance via API
+- Quick deployment to Vercel, Netlify, or similar platforms
+- Minimal infrastructure requirements
+- Perfect for getting started quickly
+
+**[Quick Start Guide](#getting-started)** | **[Deploy to Vercel](#deploy-to-vercel-recommended)**
+
+### 🔒 Install Mode (Secure Self-Hosted)
+**Best for:** Sensitive data, CUI/CMMC compliance, air-gapped environments
+
+- Self-contained Docker Compose deployment
+- All services run in an isolated, secure environment
+- Direct database connections (no external APIs)
+- FIPS-compliant components available
+- Designed for Windows environments with BitLocker encryption
+
+**[Secure Deployment Guide](./docs/CMMC_DEPLOYMENT.md)** *(Coming Soon)*
+
+---
+
 ## Features
 
 - **API-Adapter Architecture**: Agnostic design allows easy switching between data providers (Baserow, PostgreSQL, etc.)
@@ -371,7 +398,13 @@ See [LICENSE](./LICENSE) file for details.
 
 ## Roadmap
 
-- [ ] PostgreSQL provider implementation
+### Current Focus (Phase 1)
+- [ ] **PostgreSQL provider implementation** *(High Priority)*
+- [ ] Complete Install Mode documentation (CMMC_DEPLOYMENT.md)
+- [ ] Docker Compose setup for secure self-hosted deployment
+- [ ] FIPS-compliant component integration
+
+### Future Enhancements (Phase 2+)
 - [ ] Task dependencies visualization
 - [ ] Milestone markers
 - [ ] Resource allocation view

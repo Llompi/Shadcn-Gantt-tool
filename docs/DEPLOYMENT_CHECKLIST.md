@@ -1,5 +1,8 @@
 # Deployment Checklist
 
+> **Deployment Mode**: This checklist covers **Easy Mode** deployment (Vercel/cloud platforms).
+> For secure self-hosted deployment (CMMC-compliant), see [CMMC_DEPLOYMENT.md](./CMMC_DEPLOYMENT.md).
+
 Use this checklist to ensure a smooth deployment to Vercel.
 
 ## Pre-Deployment

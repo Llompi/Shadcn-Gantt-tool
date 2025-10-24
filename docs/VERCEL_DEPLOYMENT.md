@@ -1,5 +1,8 @@
 # Deploying to Vercel
 
+> **Deployment Mode**: This guide covers **Easy Mode** deployment (cloud-based, API connector).
+> For secure self-hosted deployment (CMMC-compliant), see [CMMC_DEPLOYMENT.md](./CMMC_DEPLOYMENT.md).
+
 This guide walks you through deploying the Gantt Project Manager to Vercel.
 
 ## Prerequisites
