@@ -1,0 +1,14 @@
+name,startAt,endAt,status,statusColor,owner,group,progress,description
+Project Planning,2024-01-01,2024-01-05,Done,#22c55e,Alice,Phase 1: Foundation,100,Define project scope and objectives
+Design System Setup,2024-01-03,2024-01-10,Done,#22c55e,Bob,Phase 1: Foundation,100,Create design tokens and component library
+Database Design,2024-01-08,2024-01-15,Done,#22c55e,Alice,Phase 2: Backend,100,Design database schema and relationships
+API Development,2024-01-12,2024-01-26,In Progress,#3b82f6,Bob,Phase 2: Backend,75,Build REST API endpoints
+Authentication System,2024-01-20,2024-02-03,In Progress,#3b82f6,Charlie,Phase 2: Backend,60,Implement OAuth and JWT authentication
+Component Library,2024-01-22,2024-02-05,In Progress,#3b82f6,Bob,Phase 3: Frontend,45,Build reusable UI components
+Dashboard UI,2024-01-28,2024-02-12,To Do,#94a3b8,Alice,Phase 3: Frontend,0,Create main dashboard interface
+User Settings,2024-02-05,2024-02-15,To Do,#94a3b8,Charlie,Phase 3: Frontend,0,Implement user preferences and settings
+Integration Testing,2024-02-10,2024-02-20,To Do,#94a3b8,Bob,Phase 4: Testing,0,End-to-end testing and bug fixes
+Performance Optimization,2024-02-15,2024-02-25,To Do,#94a3b8,Alice,Phase 4: Testing,0,Optimize load times and resource usage
+Documentation,2024-02-20,2024-03-01,To Do,#94a3b8,Charlie,Phase 5: Launch,0,Write user guides and API documentation
+Beta Testing,2024-02-25,2024-03-10,To Do,#94a3b8,Alice,Phase 5: Launch,0,Conduct user acceptance testing
+Production Deployment,2024-03-08,2024-03-15,To Do,#94a3b8,Bob,Phase 5: Launch,0,Deploy to production environment

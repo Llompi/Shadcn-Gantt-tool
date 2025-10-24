@@ -1,0 +1,7 @@
+name,startAt,endAt,status,statusColor
+Setup Repository,2024-01-01,2024-01-03,Done,#22c55e
+Initial Design,2024-01-02,2024-01-08,Done,#22c55e
+Build Backend,2024-01-07,2024-01-20,In Progress,#3b82f6
+Create Frontend,2024-01-15,2024-02-05,To Do,#94a3b8
+Testing Phase,2024-02-01,2024-02-15,To Do,#94a3b8
+Launch,2024-02-12,2024-02-20,To Do,#94a3b8

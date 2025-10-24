@@ -1,9 +1,10 @@
 # Demo Mode - Run Without Baserow
 
-Don't have Baserow set up yet? No problem! The app includes a **demo mode** with sample data so you can:
-- ✅ Test the Gantt chart UI immediately
+Don't have Baserow set up yet? No problem! The app includes a **demo mode** with flexible data options:
+- ✅ Test the Gantt chart UI immediately with built-in sample data
+- ✅ **Upload your own CSV or JSON files** through the UI
 - ✅ See how the app works before setting up Baserow
-- ✅ Demo the app to stakeholders
+- ✅ Demo the app to stakeholders with custom data
 - ✅ Develop locally without external dependencies
 
 ## Quick Start with Demo Mode
@@ -54,7 +55,80 @@ Tasks have realistic:
 - ✅ Progress percentages
 - ✅ Descriptions and groupings
 
-### 3. Interactive Features
+### 3. Upload Your Own Data (CSV or JSON)
+
+Want to use your own data instead of the built-in samples? Upload custom files through the UI!
+
+#### CSV File Upload
+
+**Format Requirements:**
+- Comma-separated values (.csv)
+- Headers must match: `name`, `startAt`, `endAt`, `status`, `owner`, `group`, `progress`, `description`
+- Dates in ISO format (YYYY-MM-DD)
+
+**Example CSV:**
+```csv
+name,startAt,endAt,status,owner,group,progress,description
+Setup Project,2024-01-01,2024-01-07,Done,Alice,Phase 1,100,Initial project setup
+Build API,2024-01-08,2024-01-21,In Progress,Bob,Phase 2,60,REST API development
+```
+
+**How to Upload:**
+1. Go to the Gantt page (http://localhost:3000/gantt)
+2. Click the **"Upload Data"** button in the toolbar
+3. Select your CSV file
+4. Click **"Load Data"**
+5. Your tasks appear instantly!
+
+See `examples/tasks.csv` for a complete example.
+
+#### JSON File Upload
+
+**Format Requirements:**
+- Valid JSON array (.json)
+- Each task object should have: `name`, `startAt`, `endAt`, `status`, etc.
+- Dates as ISO strings
+
+**Example JSON:**
+```json
+[
+  {
+    "id": "1",
+    "name": "Setup Project",
+    "startAt": "2024-01-01",
+    "endAt": "2024-01-07",
+    "status": {
+      "id": "1",
+      "name": "Done",
+      "color": "#22c55e"
+    },
+    "owner": "Alice",
+    "group": "Phase 1",
+    "progress": 100,
+    "description": "Initial project setup"
+  }
+]
+```
+
+**How to Upload:**
+1. Go to the Gantt page
+2. Click **"Upload Data"**
+3. Select your JSON file
+4. Tasks load automatically
+
+See `examples/tasks.json` for a complete example with multiple tasks and statuses.
+
+#### Benefits of File Upload
+
+- **No Backend Required**: Test with your real project data without setting up Baserow
+- **Quick Prototyping**: Export from Excel/Google Sheets and upload instantly
+- **Custom Demos**: Prepare specific datasets for presentations
+- **Data Migration**: Test data structure before committing to Baserow
+- **Offline Work**: Work with project data without internet connection
+
+**Note**: Uploaded data persists in browser memory during the session but resets on page refresh. For persistent storage, use Baserow mode.
+
+### 4. Interactive Features
 
 In demo mode, you can:
 
@@ -276,22 +350,23 @@ constructor() {
 }
 ```
 
-## Advanced: CSV Import (Future Feature)
+## Data File Examples
 
-We're planning to add CSV import functionality:
+### Example Files Location
 
-```csv
-name,start,end,status,owner,group
-Setup Project,2024-01-01,2024-01-07,Done,Alice,Phase 1
-Build API,2024-01-08,2024-01-21,In Progress,Bob,Phase 2
-```
+Check the `examples/` directory for ready-to-use sample files:
+- `examples/tasks.csv` - CSV format example
+- `examples/tasks.json` - JSON format example
+- `examples/tasks-simple.csv` - Minimal CSV with required fields only
+- `examples/tasks-complex.json` - Complex project with dependencies
 
-This will allow you to:
-- Import from Excel/Google Sheets
-- Bulk load project data
-- Migrate from other tools
+These files demonstrate:
+- Proper date formatting
+- Status object structure
+- Optional fields usage
+- Multi-phase project organization
 
-**Coming soon!** Track progress: https://github.com/yourusername/repo/issues
+You can use these as templates for your own data files!
 
 ## Troubleshooting Demo Mode
 

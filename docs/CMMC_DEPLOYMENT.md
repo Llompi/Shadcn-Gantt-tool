@@ -9,6 +9,8 @@ This guide describes the **Install Mode** deployment strategy for the Shadcn-Gan
 | Feature | Easy Mode (API Connector) | Install Mode (Secure Self-Hosted) |
 |---------|---------------------------|-----------------------------------|
 | **Use Case** | Demos, prototyping, public data | CUI, CMMC compliance, sensitive data |
+| **Configuration** | UI-based settings editor + environment variables | Environment variables only |
+| **Data Sources** | Baserow API, PostgreSQL API, CSV/JSON upload | Direct PostgreSQL connection |
 | **Deployment** | Vercel, Netlify, cloud platforms | Self-hosted Docker Compose |
 | **Data Location** | External API (Baserow cloud) | Local PostgreSQL database |
 | **Network** | Internet-connected | Air-gapped capable |
