@@ -4,7 +4,7 @@
  * @created 2025-10-25
  */
 
-import { Pool, PoolClient, QueryResult } from 'pg'
+import { Pool, PoolClient, QueryResult, QueryResultRow } from 'pg'
 import type {
   PostgresConfig,
   PostgresTaskRow,
@@ -48,7 +48,7 @@ export class PostgresClient {
    * @param params - Query parameters (for parameterized queries)
    * @returns Query result
    */
-  private async query<T = unknown>(
+  private async query<T extends QueryResultRow = QueryResultRow>(
     text: string,
     params?: unknown[]
   ): Promise<QueryResult<T>> {
@@ -425,7 +425,7 @@ export class PostgresClient {
    */
   async isHealthy(): Promise<boolean> {
     try {
-      const result = await this.query('SELECT 1 as health_check')
+      const result = await this.query<{ health_check: number }>('SELECT 1 as health_check')
       return result.rows.length > 0 && result.rows[0].health_check === 1
     } catch (error) {
       console.error('Health check failed:', error)
