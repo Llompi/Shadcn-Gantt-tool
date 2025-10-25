@@ -10,6 +10,9 @@ import React, { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ClientSessionManager } from '@/lib/client-session-manager'
+import { FieldMapper } from '@/components/field-mapper'
+import { BaserowFieldMapping } from '@/lib/providers/baserow/field-mapping'
+import { BaserowFieldMetadata } from '@/lib/providers/baserow/field-detector'
 
 type ProviderType = 'demo' | 'baserow' | 'postgres'
 type DeploymentMode = 'server' | 'client'
@@ -78,7 +81,11 @@ export default function ConfigPage() {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([])
   const [tables, setTables] = useState<Table[]>([])
   const [fields, setFields] = useState<Field[]>([])
+  const [taskFields, setTaskFields] = useState<BaserowFieldMetadata[]>([])
+  const [statusFields, setStatusFields] = useState<BaserowFieldMetadata[]>([])
+  const [fieldMapping, setFieldMapping] = useState<Partial<BaserowFieldMapping>>()
   const [selectedWorkspace, setSelectedWorkspace] = useState<string>('')
+  const [showFieldMapping, setShowFieldMapping] = useState(false)
 
   const testConnection = async () => {
     setTesting(true)
@@ -169,19 +176,64 @@ export default function ConfigPage() {
       const data = await response.json()
       if (data.success) {
         setFields(data.fields)
+        // Store as task fields for now
+        setTaskFields(data.fields as BaserowFieldMetadata[])
       }
     } catch (error) {
       console.error('Failed to load fields:', error)
     }
   }
 
+  const loadFieldsForMapping = async () => {
+    if (!baserowConfig.token || !baserowConfig.tasksTableId || !baserowConfig.statusesTableId) {
+      return
+    }
+
+    try {
+      // Load task fields
+      const taskResponse = await fetch('/api/config/fields', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          token: baserowConfig.token,
+          tableId: baserowConfig.tasksTableId,
+          baseUrl: baserowConfig.baseUrl,
+        }),
+      })
+
+      const taskData = await taskResponse.json()
+
+      // Load status fields
+      const statusResponse = await fetch('/api/config/fields', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          token: baserowConfig.token,
+          tableId: baserowConfig.statusesTableId,
+          baseUrl: baserowConfig.baseUrl,
+        }),
+      })
+
+      const statusData = await statusResponse.json()
+
+      if (taskData.success && statusData.success) {
+        setTaskFields(taskData.fields as BaserowFieldMetadata[])
+        setStatusFields(statusData.fields as BaserowFieldMetadata[])
+        setShowFieldMapping(true)
+      }
+    } catch (error) {
+      console.error('Failed to load fields for mapping:', error)
+    }
+  }
+
   const startClientSession = () => {
-    // Save config to session storage
+    // Save config to session storage with field mapping
     ClientSessionManager.saveConfig({
       baseUrl: baserowConfig.baseUrl,
       token: baserowConfig.token,
       tasksTableId: baserowConfig.tasksTableId,
       statusesTableId: baserowConfig.statusesTableId,
+      fieldMapping: fieldMapping as BaserowFieldMapping,
     })
 
     // Navigate to gantt chart with client mode
@@ -490,7 +542,35 @@ export default function ConfigPage() {
                   placeholder="12346"
                 />
               </div>
+
+              {/* Map Fields Button */}
+              {baserowConfig.tasksTableId && baserowConfig.statusesTableId && (
+                <div className="mt-4">
+                  <button
+                    onClick={loadFieldsForMapping}
+                    className="w-full px-4 py-3 bg-purple-600 text-white rounded-md hover:bg-purple-700 font-medium"
+                  >
+                    📋 Configure Field Mappings
+                  </button>
+                  <p className="text-sm text-gray-600 mt-2">
+                    Map your Baserow table fields to the Gantt chart fields with intelligent auto-detection
+                  </p>
+                </div>
+              )}
             </div>
+
+            {/* Field Mapping UI */}
+            {showFieldMapping && taskFields.length > 0 && statusFields.length > 0 && (
+              <div className="mt-6 p-6 bg-white rounded-lg border-2 border-purple-200">
+                <h3 className="text-xl font-semibold mb-4">Field Mapping Configuration</h3>
+                <FieldMapper
+                  taskFields={taskFields}
+                  statusFields={statusFields}
+                  initialMapping={fieldMapping}
+                  onChange={setFieldMapping}
+                />
+              </div>
+            )}
 
             {/* Client Mode Test & Start Session */}
             {baserowConfig.token && baserowConfig.tasksTableId && (
@@ -507,10 +587,21 @@ export default function ConfigPage() {
                   {testResult?.success && (
                     <button
                       onClick={startClientSession}
-                      className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 font-medium"
+                      disabled={!fieldMapping}
+                      className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                      title={!fieldMapping ? 'Please configure field mappings first' : ''}
                     >
                       🚀 Start Client Session
                     </button>
+                  )}
+
+                  {testResult?.success && !fieldMapping && (
+                    <div className="flex items-center text-amber-600 text-sm">
+                      <svg className="h-4 w-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                      Configure field mappings to continue
+                    </div>
                   )}
                 </div>
 
