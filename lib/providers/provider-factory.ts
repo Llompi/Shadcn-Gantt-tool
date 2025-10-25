@@ -19,7 +19,7 @@ export function createDataProvider(config?: ProviderConfig): IDataProvider {
         baseUrl: config?.baseUrl || process.env.BASEROW_BASE_URL || "https://api.baserow.io",
         token: config?.token || process.env.BASEROW_TOKEN || "",
         tasksTableId: process.env.BASEROW_TABLE_ID_TASKS || "",
-        statusesTableId: process.env.BASEROW_TABLE_ID_STATUSES || "",
+        statusesTableId: process.env.BASEROW_TABLE_ID_STATUSES || undefined,
       })
 
     case "postgres":
@@ -57,7 +57,7 @@ export async function createDataProviderAsync(config?: ProviderConfig): Promise<
         baseUrl: config?.baseUrl || process.env.BASEROW_BASE_URL || "https://api.baserow.io",
         token: config?.token || process.env.BASEROW_TOKEN || "",
         tasksTableId: process.env.BASEROW_TABLE_ID_TASKS || "",
-        statusesTableId: process.env.BASEROW_TABLE_ID_STATUSES || "",
+        statusesTableId: process.env.BASEROW_TABLE_ID_STATUSES || undefined,
         fieldMapping, // Pass the loaded field mapping
       })
     }
