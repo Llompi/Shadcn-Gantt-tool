@@ -38,12 +38,21 @@ This project officially supports **two distinct deployment strategies** to meet 
 
 ## Features
 
-- **API-Adapter Architecture**: Agnostic design allows easy switching between data providers (Baserow, PostgreSQL, etc.)
-- **UI-Based Configuration**: Live editing of connection settings, workspace, table, and view selection through the interface
+- **Multiple Data Providers**:
+  - **Baserow**: Connect to Baserow via API for no-code database management
+  - **PostgreSQL**: Direct database connection with full SQL power and control (NEW in v1.1.0)
+  - **Demo Mode**: Built-in sample data for quick testing and evaluation
+- **UI-Based Configuration** (NEW in v1.1.0):
+  - Visual configuration interface at `/config`
+  - Live connection testing and validation
+  - Baserow workspace/table/view browser
+  - Field inspector for mapping
+  - No need to edit .env files manually
+- **API-Adapter Architecture**: Agnostic design allows easy switching between data providers
 - **Flexible Data Sources**:
-  - Connect to Baserow or PostgreSQL via API
+  - Connect to Baserow or PostgreSQL databases
   - Use built-in demo data for testing
-  - Upload custom CSV or JSON files
+  - CSV/JSON file upload support (coming in v1.2.0)
 - **Server-Side Security**: All database credentials and API tokens are kept server-side, never exposed to the browser
 - **Real-time Updates**: Webhook support for instant synchronization when data changes in Baserow
 - **Drag & Drop**: Intuitive task manipulation with drag-to-move and resize handles
@@ -74,7 +83,10 @@ This project officially supports **two distinct deployment strategies** to meet 
 ## Prerequisites
 
 - Node.js 18+ and npm/pnpm
-- A Baserow account (free tier works fine)
+- One of the following data sources:
+  - **Demo Mode**: No setup required
+  - **Baserow**: A Baserow account (free tier works fine)
+  - **PostgreSQL**: PostgreSQL 12+ database (see [PostgreSQL Setup Guide](./docs/POSTGRES_SETUP.md))
 - Basic knowledge of Next.js and React
 
 ## Getting Started
@@ -94,7 +106,20 @@ npm install
 pnpm install
 ```
 
-### 3. Set up Baserow
+### 3. Choose Your Data Provider
+
+You can choose one of three data providers:
+
+#### Option A: Demo Mode (Quickest)
+No setup required! Just set `DATA_PROVIDER=demo` in `.env.local` and skip to step 4.
+
+#### Option B: Baserow (Easy Mode)
+Perfect for no-code database management. Follow the Baserow setup below.
+
+#### Option C: PostgreSQL (Install Mode)
+For maximum control and performance. See the [PostgreSQL Setup Guide](./docs/POSTGRES_SETUP.md).
+
+### 3a. Set up Baserow (Optional)
 
 #### Create your tables
 
@@ -135,25 +160,50 @@ You'll need two tables in Baserow:
 
 ### 4. Configure environment variables
 
+#### Quick Configuration (UI Method - Recommended)
+
+1. Start the dev server: `npm run dev`
+2. Navigate to [http://localhost:3000/config](http://localhost:3000/config)
+3. Select your provider type (Demo, Baserow, or PostgreSQL)
+4. Enter your connection details
+5. Test the connection
+6. Copy the generated environment variables to `.env.local`
+
+#### Manual Configuration
+
 Copy the example environment file:
 
 ```bash
 cp .env.example .env.local
 ```
 
-Edit `.env.local` with your Baserow credentials:
-
+**For Demo Mode:**
 ```env
+DATA_PROVIDER=demo
+```
+
+**For Baserow:**
+```env
+DATA_PROVIDER=baserow
 BASEROW_BASE_URL=https://api.baserow.io
 BASEROW_TOKEN=your_database_token_here
 BASEROW_TABLE_ID_TASKS=12345
 BASEROW_TABLE_ID_STATUSES=12346
-
-DATA_PROVIDER=baserow
-
-# Optional: For webhook authentication
-BASEROW_WEBHOOK_SECRET=your_webhook_secret_here
+BASEROW_WEBHOOK_SECRET=your_webhook_secret_here  # Optional
 ```
+
+**For PostgreSQL:**
+```env
+DATA_PROVIDER=postgres
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+POSTGRES_DB=gantt_db
+POSTGRES_USER=gantt_user
+POSTGRES_PASSWORD=your_secure_password
+POSTGRES_SSL=false  # Set to true for production
+```
+
+See [PostgreSQL Setup Guide](./docs/POSTGRES_SETUP.md) for detailed PostgreSQL configuration.
 
 ### 5. Customize field mapping (if needed)
 
@@ -299,22 +349,45 @@ The Baserow provider supports:
 3. Update the field mapping in `lib/providers/baserow/field-mapping.ts`
 4. Update the mapper in `lib/providers/baserow/baserow-provider.ts`
 
-### Switching to a Different Provider
+### Switching Between Providers
 
-The architecture supports multiple data providers:
+The application supports seamless switching between providers:
+
+**Current Providers:**
+- **Demo**: `DATA_PROVIDER=demo` - Built-in sample data
+- **Baserow**: `DATA_PROVIDER=baserow` - No-code database ([Setup Guide](./docs/BASEROW_SETUP.md))
+- **PostgreSQL**: `DATA_PROVIDER=postgres` - SQL database ([Setup Guide](./docs/POSTGRES_SETUP.md))
+
+**To Switch:**
+1. Update `DATA_PROVIDER` in `.env.local`
+2. Add provider-specific configuration (see `.env.example`)
+3. Restart the development server
+4. Or use the [Configuration UI](http://localhost:3000/config) for visual setup
+
+**Adding Custom Providers:**
 
 1. Implement the `IDataProvider` interface
 2. Add your provider to `lib/providers/`
-3. Update `provider-factory.ts` to include your provider
-4. Set `DATA_PROVIDER=your_provider` in `.env.local`
+3. Register in `provider-factory.ts`
+4. Set `DATA_PROVIDER=your_provider`
 
-Example structure for a Postgres provider:
+Example structure:
 
 ```typescript
-export class PostgresProvider implements IDataProvider {
-  // Implement all IDataProvider methods
+export class CustomProvider implements IDataProvider {
+  async getTasks(params?: TaskQueryParams): Promise<PaginatedResponse<Task>>
+  async getAllTasks(): Promise<Task[]>
+  async getTaskById(id: string): Promise<Task | null>
+  async createTask(data: CreateTaskDTO): Promise<Task>
+  async updateTask(id: string, data: UpdateTaskDTO): Promise<Task>
+  async deleteTask(id: string): Promise<void>
+  async getStatuses(): Promise<TaskStatus[]>
+  async getStatusById(id: string): Promise<TaskStatus | null>
+  async isHealthy(): Promise<boolean>
 }
 ```
+
+See existing providers in `lib/providers/` for reference.
 
 ### Customizing the UI
 
@@ -439,13 +512,13 @@ See [LICENSE](./LICENSE) file for details.
 See [ROADMAP.md](./ROADMAP.md) for the complete roadmap with detailed timelines and feature descriptions.
 
 ### Current Focus (v1.1.0 - v1.5.0)
-- [ ] **PostgreSQL provider implementation** *(High Priority)* - v1.1.0
-- [ ] **UI-based configuration interface** *(High Priority)* - v1.1.0
-  - Live connection settings editor
-  - Workspace/table/view selector for Baserow
-  - Connection testing and validation
-  - CSV/JSON file upload for demo data
-- [ ] **Task dependencies visualization** - v1.2.0
+- [x] **PostgreSQL provider implementation** *(High Priority)* - v1.1.0 ✅ COMPLETED
+- [x] **UI-based configuration interface** *(High Priority)* - v1.1.0 ✅ COMPLETED
+  - [x] Live connection settings editor
+  - [x] Workspace/table/view selector for Baserow
+  - [x] Connection testing and validation
+  - [ ] CSV/JSON file upload for demo data (deferred to v1.2.0)
+- [ ] **Task dependencies visualization** - v1.2.0 (Next)
 - [ ] **Export to PDF/PNG/CSV** - v1.3.0
 - [ ] **Advanced filtering and search** - v1.4.0
 - [ ] **Performance optimization** - v1.5.0

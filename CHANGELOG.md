@@ -7,18 +7,72 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Planned
+- CSV/JSON file upload functionality for demo data
+- Real-time configuration switching without restart
+- Task dependencies visualization (v1.2.0)
+- Export functionality (v1.3.0)
+
+## [1.1.0] - 2025-10-25
+
 ### Added
-- Enhanced collaboration documentation for humans and AI tools
-  - Comprehensive CONTRIBUTING.md with detailed guidelines
-  - AI_COLLABORATION.md with AI-specific workflow instructions
-  - PROJECT_STATUS.md for tracking progress and goals
-  - ROADMAP.md for long-term planning
-  - GitHub issue templates (bug report, feature request, custom)
-  - GitHub pull request template
-- This CHANGELOG.md file to track all changes
+- **PostgreSQL Provider** - Full support for PostgreSQL databases
+  - Complete PostgreSQL client implementation with connection pooling
+  - Comprehensive database schema with migrations (`lib/providers/postgres/schema.sql`)
+  - Support for all CRUD operations (tasks and statuses)
+  - Field mapping configuration for PostgreSQL
+  - Health checks and connection testing
+  - Transaction support for complex operations
+  - POSTGRES_SETUP.md documentation guide
+- **UI-Based Configuration Interface**
+  - New `/config` page for visual configuration management
+  - Connection testing interface for all providers
+  - Baserow workspace/table browser
+  - Baserow field inspector for mapping
+  - PostgreSQL connection configuration UI
+  - Real-time connection validation
+  - Provider type selection (Demo, Baserow, PostgreSQL)
+- **Configuration API Routes**
+  - `POST /api/config/test` - Test data provider connections
+  - `GET/POST /api/config/workspaces` - List Baserow workspaces
+  - `GET/POST /api/config/tables` - List Baserow tables
+  - `GET/POST /api/config/fields` - List Baserow fields with type categorization
+  - `GET/POST /api/config/views` - List Baserow views
+  - `POST /api/config/save` - Configuration persistence (placeholder for v1.2.0)
+- **Provider Architecture Improvements**
+  - Updated provider factory to support PostgreSQL
+  - Enhanced provider configuration interface
+  - Status caching in PostgreSQL provider for performance
+  - Automatic cleanup and connection pool management
 
 ### Changed
-- Improved CONTRIBUTING.md with more detailed sections and examples
+- Updated package.json with pg and @types/pg dependencies
+- Enhanced .env.example with PostgreSQL configuration options
+- Improved provider factory error messages
+- Updated documentation structure with new PostgreSQL guides
+
+### Documentation
+- Added comprehensive PostgreSQL setup guide (docs/POSTGRES_SETUP.md)
+  - Installation instructions for all platforms
+  - Database creation and configuration
+  - Schema application guide
+  - Troubleshooting section
+  - Performance optimization tips
+  - Backup and restore procedures
+- Updated README.md with PostgreSQL provider information
+- Enhanced collaboration documentation for v1.1.0 features
+
+### Performance
+- Connection pooling for PostgreSQL (configurable pool size)
+- Status caching in PostgreSQL provider (1-minute TTL)
+- Optimized database queries with proper indexing
+- Prepared statements for all PostgreSQL operations
+
+### Security
+- PostgreSQL credentials remain server-side only
+- SSL support for PostgreSQL connections
+- Secure password fields in configuration UI
+- Input validation for all configuration endpoints
 
 ## [1.0.0] - 2025-10-24
 
