@@ -1,4 +1,4 @@
-import { BaserowPaginatedResponse, BaserowRow, BaserowRequestOptions } from "./types"
+import { BaserowPaginatedResponse, BaserowRow, BaserowRequestOptions, BaserowFieldMetadata } from "./types"
 
 /**
  * Baserow API Client
@@ -150,6 +150,15 @@ export class BaserowClient {
       {
         method: "DELETE",
       }
+    )
+  }
+
+  /**
+   * Get table field metadata (including select_options for single_select fields)
+   */
+  async getTableFields(tableId: string): Promise<BaserowFieldMetadata[]> {
+    return this.request<BaserowFieldMetadata[]>(
+      `/api/database/fields/table/${tableId}/`
     )
   }
 

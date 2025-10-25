@@ -185,7 +185,7 @@ export default function ConfigPage() {
   }
 
   const loadFieldsForMapping = async () => {
-    if (!baserowConfig.token || !baserowConfig.tasksTableId || !baserowConfig.statusesTableId) {
+    if (!baserowConfig.token || !baserowConfig.tasksTableId) {
       return
     }
 
@@ -203,18 +203,31 @@ export default function ConfigPage() {
 
       const taskData = await taskResponse.json()
 
-      // Load status fields
-      const statusResponse = await fetch('/api/config/fields', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          token: baserowConfig.token,
-          tableId: baserowConfig.statusesTableId,
-          baseUrl: baserowConfig.baseUrl,
-        }),
-      })
-
-      const statusData = await statusResponse.json()
+      // Load status fields - either from separate table or use task fields for auto-extraction
+      let statusData
+      if (baserowConfig.statusesTableId) {
+        const statusResponse = await fetch('/api/config/fields', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            token: baserowConfig.token,
+            tableId: baserowConfig.statusesTableId,
+            baseUrl: baserowConfig.baseUrl,
+          }),
+        })
+        statusData = await statusResponse.json()
+      } else {
+        // If no status table ID, use default status fields for mapping
+        // The actual statuses will be auto-extracted from single_select field at runtime
+        statusData = {
+          success: true,
+          fields: [
+            { id: 1, name: 'id', type: 'number', primary: true, order: 0 },
+            { id: 2, name: 'Name', type: 'text', order: 1 },
+            { id: 3, name: 'Color', type: 'text', order: 2 },
+          ]
+        }
+      }
 
       if (taskData.success && statusData.success) {
         setTaskFields(taskData.fields as BaserowFieldMetadata[])
@@ -527,7 +540,7 @@ export default function ConfigPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Statuses Table ID
+                  Statuses Table ID <span className="text-gray-500 font-normal">(Optional)</span>
                 </label>
                 <input
                   type="text"
@@ -539,12 +552,16 @@ export default function ConfigPage() {
                     })
                   }
                   className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  placeholder="12346"
+                  placeholder="Leave blank to auto-extract from single_select field"
                 />
+                <p className="text-sm text-gray-600 mt-1">
+                  💡 <strong>New:</strong> Leave blank if your Status field is a <code className="bg-gray-100 px-1 rounded">single_select</code>.
+                  Statuses will be auto-extracted from field options.
+                </p>
               </div>
 
               {/* Map Fields Button */}
-              {baserowConfig.tasksTableId && baserowConfig.statusesTableId && (
+              {baserowConfig.tasksTableId && (
                 <div className="mt-4">
                   <button
                     onClick={loadFieldsForMapping}
@@ -758,7 +775,7 @@ export default function ConfigPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Statuses Table ID
+                  Statuses Table ID <span className="text-gray-500 font-normal">(Optional)</span>
                 </label>
                 <input
                   type="text"
@@ -770,12 +787,16 @@ export default function ConfigPage() {
                     })
                   }
                   className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  placeholder="12346"
+                  placeholder="Leave blank to auto-extract from single_select field"
                 />
+                <p className="text-sm text-gray-600 mt-1">
+                  💡 <strong>New:</strong> Leave blank if your Status field is a <code className="bg-gray-100 px-1 rounded">single_select</code>.
+                  Statuses will be auto-extracted from field options.
+                </p>
               </div>
 
               {/* Map Fields Button */}
-              {baserowConfig.tasksTableId && baserowConfig.statusesTableId && (
+              {baserowConfig.tasksTableId && (
                 <div className="mt-4">
                   <button
                     onClick={loadFieldsForMapping}

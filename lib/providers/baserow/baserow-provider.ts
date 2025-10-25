@@ -15,7 +15,7 @@ export interface BaserowProviderConfig {
   baseUrl: string
   token: string
   tasksTableId: string
-  statusesTableId: string
+  statusesTableId?: string // Optional - if not provided, will auto-extract from single_select field
   fieldMapping?: BaserowFieldMapping // Optional custom field mapping
 }
 
@@ -251,26 +251,91 @@ export class BaserowProvider implements IDataProvider {
   }
 
   /**
-   * Get all statuses
+   * Extract statuses from single_select field options
+   * This is used when statusesTableId is not provided
    */
-  async getStatuses(): Promise<TaskStatus[]> {
+  private async extractStatusesFromSingleSelect(): Promise<TaskStatus[]> {
     try {
-      const rows = await this.client.getAllRows(this.config.statusesTableId)
-      return rows.map((row) => this.mapRowToStatus(row))
+      // Fetch table field metadata to get single_select options
+      const fields = await this.client.getTableFields(this.config.tasksTableId)
+
+      // Find the status field
+      const statusFieldName = this.fieldMapping.tasks.status
+      const statusField = fields.find((f) => f.name === statusFieldName)
+
+      if (!statusField) {
+        console.warn(`Status field "${statusFieldName}" not found in tasks table`)
+        return []
+      }
+
+      // Check if it's a single_select field
+      if (statusField.type !== "single_select") {
+        console.warn(
+          `Status field "${statusFieldName}" is type "${statusField.type}", not "single_select". ` +
+          `Auto-extraction only works with single_select fields. ` +
+          `Please provide a statusesTableId for other field types.`
+        )
+        return []
+      }
+
+      // Extract select_options
+      if (!statusField.select_options || statusField.select_options.length === 0) {
+        console.warn(`Status field "${statusFieldName}" has no select_options`)
+        return []
+      }
+
+      // Map select_options to TaskStatus
+      return statusField.select_options.map((option) => ({
+        id: String(option.id),
+        name: option.value,
+        color: option.color,
+      }))
     } catch (error) {
-      // If statuses table doesn't exist or is empty, return empty array
-      console.error("Error fetching statuses:", error)
+      console.error("Error extracting statuses from single_select field:", error)
       return []
     }
+  }
+
+  /**
+   * Get all statuses
+   * If statusesTableId is provided, fetches from separate table (backward compatible)
+   * Otherwise, auto-extracts from single_select field in tasks table
+   */
+  async getStatuses(): Promise<TaskStatus[]> {
+    // If statusesTableId is provided, use traditional approach (backward compatible)
+    if (this.config.statusesTableId) {
+      try {
+        const rows = await this.client.getAllRows(this.config.statusesTableId)
+        return rows.map((row) => this.mapRowToStatus(row))
+      } catch (error) {
+        // If statuses table doesn't exist or is empty, return empty array
+        console.error("Error fetching statuses from separate table:", error)
+        return []
+      }
+    }
+
+    // Otherwise, auto-extract from single_select field
+    return this.extractStatusesFromSingleSelect()
   }
 
   /**
    * Get a single status by ID
    */
   async getStatusById(id: string): Promise<TaskStatus | null> {
+    // If statusesTableId is provided, use traditional approach
+    if (this.config.statusesTableId) {
+      try {
+        const row = await this.client.getRow(this.config.statusesTableId, id)
+        return this.mapRowToStatus(row)
+      } catch {
+        return null
+      }
+    }
+
+    // Otherwise, get from extracted statuses
     try {
-      const row = await this.client.getRow(this.config.statusesTableId, id)
-      return this.mapRowToStatus(row)
+      const statuses = await this.extractStatusesFromSingleSelect()
+      return statuses.find((s) => s.id === id) || null
     } catch {
       return null
     }

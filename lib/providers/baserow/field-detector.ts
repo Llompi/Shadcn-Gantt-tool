@@ -341,7 +341,8 @@ export function getBestMappings(
  * Validate that required fields are mapped
  */
 export function validateFieldMapping(
-  mapping: Partial<BaserowFieldMapping>
+  mapping: Partial<BaserowFieldMapping>,
+  options?: { allowAutoStatusExtraction?: boolean }
 ): { valid: boolean; errors: string[] } {
   const errors: string[] = []
 
@@ -351,9 +352,12 @@ export function validateFieldMapping(
   if (!mapping.tasks?.startAt) errors.push("Task Start Date field is required")
   if (!mapping.tasks?.endAt) errors.push("Task End Date field is required")
 
-  // Required status fields
-  if (!mapping.statuses?.id) errors.push("Status ID field is required")
-  if (!mapping.statuses?.name) errors.push("Status Name field is required")
+  // Status fields are optional if auto-extraction is enabled
+  // When auto-extraction is enabled, statuses will be extracted from single_select field
+  if (!options?.allowAutoStatusExtraction) {
+    if (!mapping.statuses?.id) errors.push("Status ID field is required")
+    if (!mapping.statuses?.name) errors.push("Status Name field is required")
+  }
 
   return {
     valid: errors.length === 0,
