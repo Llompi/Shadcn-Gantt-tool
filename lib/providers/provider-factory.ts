@@ -1,6 +1,7 @@
 import { IDataProvider, ProviderConfig } from "./data-provider.interface"
 import { BaserowProvider } from "./baserow/baserow-provider"
 import { DemoProvider } from "./demo/demo-provider"
+import { PostgresProvider } from "./postgres/postgres-provider"
 
 /**
  * Factory to create the appropriate data provider based on configuration
@@ -22,8 +23,14 @@ export function createDataProvider(config?: ProviderConfig): IDataProvider {
       })
 
     case "postgres":
-      // Future implementation
-      throw new Error("Postgres provider not yet implemented")
+      return new PostgresProvider({
+        host: process.env.POSTGRES_HOST || "localhost",
+        port: parseInt(process.env.POSTGRES_PORT || "5432", 10),
+        database: process.env.POSTGRES_DB || "gantt_db",
+        user: process.env.POSTGRES_USER || "gantt_user",
+        password: process.env.POSTGRES_PASSWORD || "",
+        ssl: process.env.POSTGRES_SSL === "true" ? { rejectUnauthorized: false } : false,
+      })
 
     default:
       throw new Error(`Unknown provider type: ${providerType}`)
