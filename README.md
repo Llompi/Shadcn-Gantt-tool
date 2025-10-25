@@ -395,12 +395,40 @@ npm install
 
 ## Contributing
 
-Contributions are welcome! Please:
+We welcome contributions from developers, designers, project managers, and AI tools! This project is set up for easy collaboration with clear guidelines and progress tracking.
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes with tests
-4. Submit a pull request
+### Quick Start for Contributors
+
+1. **Read the docs**: Check [CONTRIBUTING.md](./CONTRIBUTING.md) for comprehensive guidelines
+2. **See current work**: Review [PROJECT_STATUS.md](./PROJECT_STATUS.md) for ongoing tasks
+3. **Pick a task**: Look at [open issues](https://github.com/Llompi/Shadcn-Gantt-tool/issues) or the [ROADMAP.md](./ROADMAP.md)
+4. **Fork & code**: Create a branch, make your changes, and submit a PR
+5. **AI tools**: See [AI_COLLABORATION.md](./AI_COLLABORATION.md) for AI-specific workflows
+
+### For AI Tools
+
+This repository is AI-friendly with:
+- Clear [AI collaboration guidelines](./AI_COLLABORATION.md)
+- Progress tracking in [PROJECT_STATUS.md](./PROJECT_STATUS.md)
+- Structured issue and PR templates
+- Conventional commit messages
+
+### Documentation
+
+- **[CONTRIBUTING.md](./CONTRIBUTING.md)** - How to contribute (humans and AI)
+- **[AI_COLLABORATION.md](./AI_COLLABORATION.md)** - AI-specific guidelines
+- **[PROJECT_STATUS.md](./PROJECT_STATUS.md)** - Current work and goals
+- **[ROADMAP.md](./ROADMAP.md)** - Future plans and features
+- **[CHANGELOG.md](./CHANGELOG.md)** - Version history
+
+### Ways to Contribute
+
+- 🐛 **Report bugs** using our [bug report template](https://github.com/Llompi/Shadcn-Gantt-tool/issues/new?template=bug_report.md)
+- ✨ **Request features** using our [feature request template](https://github.com/Llompi/Shadcn-Gantt-tool/issues/new?template=feature_request.md)
+- 💻 **Write code** - Check issues tagged `good first issue`
+- 📖 **Improve docs** - Help make our guides better
+- 🧪 **Test features** - Try new features and report issues
+- 💬 **Join discussions** - Share ideas and feedback
 
 ## License
 
@@ -408,26 +436,31 @@ See [LICENSE](./LICENSE) file for details.
 
 ## Roadmap
 
-### Current Focus (Phase 1)
-- [ ] **PostgreSQL provider implementation** *(High Priority)*
-- [ ] **UI-based configuration interface** *(High Priority)*
-  - [ ] Live connection settings editor
-  - [ ] Workspace/table/view selector for Baserow
-  - [ ] Connection testing and validation
-  - [ ] CSV/JSON file upload for demo data
-- [ ] Docker Compose setup for secure self-hosted deployment
-- [ ] FIPS-compliant component integration
+See [ROADMAP.md](./ROADMAP.md) for the complete roadmap with detailed timelines and feature descriptions.
 
-### Future Enhancements (Phase 2+)
-- [ ] Task dependencies visualization
-- [ ] Milestone markers
-- [ ] Resource allocation view
-- [ ] Export to PDF/PNG
-- [ ] Mobile-responsive touch controls
-- [ ] Undo/redo support
-- [ ] Batch operations
-- [ ] Advanced filtering and search
-- [ ] User permissions and roles
+### Current Focus (v1.1.0 - v1.5.0)
+- [ ] **PostgreSQL provider implementation** *(High Priority)* - v1.1.0
+- [ ] **UI-based configuration interface** *(High Priority)* - v1.1.0
+  - Live connection settings editor
+  - Workspace/table/view selector for Baserow
+  - Connection testing and validation
+  - CSV/JSON file upload for demo data
+- [ ] **Task dependencies visualization** - v1.2.0
+- [ ] **Export to PDF/PNG/CSV** - v1.3.0
+- [ ] **Advanced filtering and search** - v1.4.0
+- [ ] **Performance optimization** - v1.5.0
+
+### Future Enhancements (v2.0.0+)
+- [ ] Resource allocation and management
+- [ ] Milestone markers and tracking
+- [ ] Real-time collaboration features
+- [ ] Workflow automation
+- [ ] Advanced analytics and reporting
+- [ ] AI-powered features
+- [ ] Mobile native apps
+- [ ] Enterprise features
+
+**Track Progress**: Check [PROJECT_STATUS.md](./PROJECT_STATUS.md) for current sprint goals and completed work.
 
 ## Support
 
