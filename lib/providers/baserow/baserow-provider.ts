@@ -8,7 +8,7 @@ import {
   TaskQueryParams,
 } from "@/types/task"
 import { BaserowClient } from "./baserow-client"
-import { BaserowRow } from "./types"
+import { BaserowRow, BaserowPaginatedResponse } from "./types"
 import { getFieldMapping, BaserowFieldMapping } from "./field-mapping"
 
 export interface BaserowProviderConfig {
@@ -141,11 +141,31 @@ export class BaserowProvider implements IDataProvider {
     // Fetch statuses first for proper mapping
     const statuses = await this.getStatuses()
 
-    const response = await this.client.listRows(this.config.tasksTableId, {
-      page,
-      size: pageSize,
-      order_by: this.fieldMapping.tasks.startAt,
-    })
+    // Try with order_by first, fallback without it if field doesn't exist
+    let response: BaserowPaginatedResponse<BaserowRow>
+    try {
+      response = await this.client.listRows(this.config.tasksTableId, {
+        page,
+        size: pageSize,
+        order_by: this.fieldMapping.tasks.startAt,
+      })
+    } catch (error) {
+      // If order_by field not found, retry without ordering
+      if (
+        error instanceof Error &&
+        error.message.includes("ERROR_ORDER_BY_FIELD_NOT_FOUND")
+      ) {
+        console.warn(
+          `Order by field "${this.fieldMapping.tasks.startAt}" not found, fetching without ordering`
+        )
+        response = await this.client.listRows(this.config.tasksTableId, {
+          page,
+          size: pageSize,
+        })
+      } else {
+        throw error
+      }
+    }
 
     const tasks = response.results.map((row) => this.mapRowToTask(row, statuses))
 
@@ -163,9 +183,27 @@ export class BaserowProvider implements IDataProvider {
    */
   async getAllTasks(): Promise<Task[]> {
     const statuses = await this.getStatuses()
-    const rows = await this.client.getAllRows(this.config.tasksTableId, {
-      order_by: this.fieldMapping.tasks.startAt,
-    })
+
+    // Try with order_by first, fallback without it if field doesn't exist
+    let rows: BaserowRow[]
+    try {
+      rows = await this.client.getAllRows(this.config.tasksTableId, {
+        order_by: this.fieldMapping.tasks.startAt,
+      })
+    } catch (error) {
+      // If order_by field not found, retry without ordering
+      if (
+        error instanceof Error &&
+        error.message.includes("ERROR_ORDER_BY_FIELD_NOT_FOUND")
+      ) {
+        console.warn(
+          `Order by field "${this.fieldMapping.tasks.startAt}" not found, fetching without ordering`
+        )
+        rows = await this.client.getAllRows(this.config.tasksTableId, {})
+      } else {
+        throw error
+      }
+    }
 
     return rows.map((row) => this.mapRowToTask(row, statuses))
   }

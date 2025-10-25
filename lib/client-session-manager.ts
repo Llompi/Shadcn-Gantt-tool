@@ -1,7 +1,9 @@
 import { BaserowClientConfig } from "./providers/baserow/client-baserow-provider"
+import { BaserowFieldMapping } from "./providers/baserow/field-mapping"
 
 interface StoredConfig extends BaserowClientConfig {
   timestamp: number
+  fieldMapping?: BaserowFieldMapping
 }
 
 /**
