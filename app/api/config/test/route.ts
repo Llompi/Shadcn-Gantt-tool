@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
     let providerConfig: ProviderConfig
 
     switch (type) {
-      case 'baserow':
+      case 'baserow': {
         if (!body.baseUrl || !body.token) {
           return NextResponse.json(
             {
@@ -63,12 +63,49 @@ export async function POST(request: NextRequest) {
             { status: 400 }
           )
         }
-        providerConfig = {
-          type: 'baserow',
-          baseUrl: body.baseUrl,
-          token: body.token,
+
+        // Test Baserow by calling the applications API directly
+        try {
+          const testResponse = await fetch(`${body.baseUrl}/api/applications/`, {
+            headers: {
+              Authorization: `Token ${body.token}`,
+              'Content-Type': 'application/json',
+            },
+          })
+
+          if (!testResponse.ok) {
+            const errorText = await testResponse.text()
+            console.error('Baserow test failed:', testResponse.status, errorText)
+
+            return NextResponse.json(
+              {
+                success: false,
+                error: 'Connection failed',
+                message: `Baserow API returned ${testResponse.status}. Check your token and baseUrl.`,
+              },
+              { status: 503 }
+            )
+          }
+
+          const apps = await testResponse.json()
+          return NextResponse.json({
+            success: true,
+            message: 'Connection successful',
+            provider: 'baserow',
+            details: { applicationsFound: apps.length },
+          })
+        } catch (error) {
+          console.error('Baserow connection error:', error)
+          return NextResponse.json(
+            {
+              success: false,
+              error: 'Connection failed',
+              message: error instanceof Error ? error.message : 'Failed to connect',
+            },
+            { status: 503 }
+          )
         }
-        break
+      }
 
       case 'postgres':
         if (!body.host || !body.database || !body.user || !body.password) {
