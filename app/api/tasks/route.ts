@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getDataProvider } from "@/lib/providers/provider-factory"
+import { getDataProviderAsync } from "@/lib/providers/provider-factory"
 import { CreateTaskDTO } from "@/types/task"
 
 /**
@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
     const fetchAll = searchParams.get("all") === "true"
 
-    const provider = getDataProvider()
+    const provider = await getDataProviderAsync()
 
     if (fetchAll) {
       // Fetch all tasks without pagination
@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
       progress: body.progress,
     }
 
-    const provider = getDataProvider()
+    const provider = await getDataProviderAsync()
     const task = await provider.createTask(taskData)
 
     return NextResponse.json(

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getDataProvider } from "@/lib/providers/provider-factory"
+import { getDataProviderAsync } from "@/lib/providers/provider-factory"
 import { UpdateTaskDTO } from "@/types/task"
 
 /**
@@ -13,7 +13,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params
-    const provider = getDataProvider()
+    const provider = await getDataProviderAsync()
     const task = await provider.getTaskById(id)
 
     if (!task) {
@@ -67,7 +67,7 @@ export async function PATCH(
     if (body.description !== undefined) updateData.description = body.description
     if (body.progress !== undefined) updateData.progress = body.progress
 
-    const provider = getDataProvider()
+    const provider = await getDataProviderAsync()
     const task = await provider.updateTask(id, updateData)
 
     return NextResponse.json({
@@ -98,7 +98,7 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params
-    const provider = getDataProvider()
+    const provider = await getDataProviderAsync()
     await provider.deleteTask(id)
 
     return NextResponse.json({

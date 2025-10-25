@@ -16,6 +16,7 @@ export interface BaserowProviderConfig {
   token: string
   tasksTableId: string
   statusesTableId: string
+  fieldMapping?: BaserowFieldMapping // Optional custom field mapping
 }
 
 /**
@@ -31,7 +32,8 @@ export class BaserowProvider implements IDataProvider {
   constructor(config: BaserowProviderConfig) {
     this.config = config
     this.client = new BaserowClient(config.baseUrl, config.token)
-    this.fieldMapping = getFieldMapping()
+    // Use custom field mapping if provided, otherwise use defaults
+    this.fieldMapping = config.fieldMapping || getFieldMapping()
   }
 
   /**

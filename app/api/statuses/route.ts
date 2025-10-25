@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { getDataProvider } from "@/lib/providers/provider-factory"
+import { getDataProviderAsync } from "@/lib/providers/provider-factory"
 
 /**
  * GET /api/statuses
@@ -8,7 +8,7 @@ import { getDataProvider } from "@/lib/providers/provider-factory"
  */
 export async function GET() {
   try {
-    const provider = getDataProvider()
+    const provider = await getDataProviderAsync()
     const statuses = await provider.getStatuses()
 
     return NextResponse.json({
