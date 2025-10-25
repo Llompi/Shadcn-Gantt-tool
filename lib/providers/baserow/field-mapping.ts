@@ -54,9 +54,10 @@ export const DEFAULT_FIELD_MAPPING: BaserowFieldMapping = {
 }
 
 /**
- * Get field mapping from environment or use defaults
+ * Get field mapping from saved config or use defaults
+ * Note: This function returns the default mapping.
+ * For server-side usage with saved mappings, use getFieldMappingAsync from field-mapping-server.ts
  */
 export function getFieldMapping(): BaserowFieldMapping {
-  // In the future, this could read from environment variables or a config file
   return DEFAULT_FIELD_MAPPING
 }

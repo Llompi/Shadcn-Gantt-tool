@@ -773,7 +773,66 @@ export default function ConfigPage() {
                   placeholder="12346"
                 />
               </div>
+
+              {/* Map Fields Button */}
+              {baserowConfig.tasksTableId && baserowConfig.statusesTableId && (
+                <div className="mt-4">
+                  <button
+                    onClick={loadFieldsForMapping}
+                    className="w-full px-4 py-3 bg-purple-600 text-white rounded-md hover:bg-purple-700 font-medium"
+                  >
+                    📋 Configure Field Mappings
+                  </button>
+                  <p className="text-sm text-gray-600 mt-2">
+                    Map your Baserow table fields to the Gantt chart fields with intelligent auto-detection
+                  </p>
+                </div>
+              )}
             </div>
+
+            {/* Field Mapping UI */}
+            {showFieldMapping && taskFields.length > 0 && statusFields.length > 0 && (
+              <div className="mt-6 p-6 bg-white rounded-lg border-2 border-purple-200">
+                <h3 className="text-xl font-semibold mb-4">Field Mapping Configuration</h3>
+                <FieldMapper
+                  taskFields={taskFields}
+                  statusFields={statusFields}
+                  initialMapping={fieldMapping}
+                  onChange={setFieldMapping}
+                />
+
+                {/* Save Field Mapping Button */}
+                <div className="mt-6">
+                  <button
+                    onClick={async () => {
+                      if (!fieldMapping) return
+
+                      try {
+                        const response = await fetch('/api/config/field-mapping', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ mapping: fieldMapping }),
+                        })
+
+                        const data = await response.json()
+
+                        if (data.success) {
+                          alert('Field mapping saved successfully! The mapping will be used for all future requests.')
+                        } else {
+                          alert(`Failed to save field mapping: ${data.error}`)
+                        }
+                      } catch (error) {
+                        alert(`Error saving field mapping: ${error instanceof Error ? error.message : 'Unknown error'}`)
+                      }
+                    }}
+                    disabled={!fieldMapping}
+                    className="w-full px-4 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    💾 Save Field Mapping
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

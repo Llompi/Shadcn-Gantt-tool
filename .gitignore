@@ -26,6 +26,9 @@ yarn-error.log*
 .env*.local
 .env
 
+# gantt configuration
+.gantt-config/
+
 # vercel
 .vercel
 
