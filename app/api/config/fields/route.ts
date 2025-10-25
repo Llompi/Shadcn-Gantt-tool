@@ -5,6 +5,14 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 
+interface BaserowField {
+  id: number
+  name: string
+  type: string
+  primary?: boolean
+  order: number
+}
+
 /**
  * GET /api/config/fields
  * List all fields in a Baserow table
@@ -71,11 +79,11 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const fields = await response.json()
+    const fields: BaserowField[] = await response.json()
 
     return NextResponse.json({
       success: true,
-      fields: fields.map((field: any) => ({
+      fields: fields.map((field) => ({
         id: field.id,
         name: field.name,
         type: field.type,
@@ -143,22 +151,22 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const fields = await response.json()
+    const fields: BaserowField[] = await response.json()
 
     // Categorize fields by type for easier UI consumption
     const categorizedFields = {
-      text: fields.filter((f: any) => ['text', 'long_text', 'url', 'email', 'phone_number'].includes(f.type)),
-      number: fields.filter((f: any) => ['number', 'rating', 'count', 'rollup', 'formula'].includes(f.type)),
-      date: fields.filter((f: any) => ['date', 'last_modified', 'created_on'].includes(f.type)),
-      select: fields.filter((f: any) => ['single_select', 'multiple_select'].includes(f.type)),
-      link: fields.filter((f: any) => ['link_row'].includes(f.type)),
-      boolean: fields.filter((f: any) => ['boolean'].includes(f.type)),
-      other: fields.filter((f: any) => !['text', 'long_text', 'url', 'email', 'phone_number', 'number', 'rating', 'count', 'rollup', 'formula', 'date', 'last_modified', 'created_on', 'single_select', 'multiple_select', 'link_row', 'boolean'].includes(f.type)),
+      text: fields.filter((f) => ['text', 'long_text', 'url', 'email', 'phone_number'].includes(f.type)),
+      number: fields.filter((f) => ['number', 'rating', 'count', 'rollup', 'formula'].includes(f.type)),
+      date: fields.filter((f) => ['date', 'last_modified', 'created_on'].includes(f.type)),
+      select: fields.filter((f) => ['single_select', 'multiple_select'].includes(f.type)),
+      link: fields.filter((f) => ['link_row'].includes(f.type)),
+      boolean: fields.filter((f) => ['boolean'].includes(f.type)),
+      other: fields.filter((f) => !['text', 'long_text', 'url', 'email', 'phone_number', 'number', 'rating', 'count', 'rollup', 'formula', 'date', 'last_modified', 'created_on', 'single_select', 'multiple_select', 'link_row', 'boolean'].includes(f.type)),
     }
 
     return NextResponse.json({
       success: true,
-      fields: fields.map((field: any) => ({
+      fields: fields.map((field) => ({
         id: field.id,
         name: field.name,
         type: field.type,

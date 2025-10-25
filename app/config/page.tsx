@@ -27,6 +27,28 @@ interface PostgresConfig {
   ssl: boolean
 }
 
+interface Workspace {
+  id: number
+  name: string
+  order: number
+  permissions: string
+}
+
+interface Table {
+  id: number
+  name: string
+  order: number
+  database_id: number
+}
+
+interface Field {
+  id: number
+  name: string
+  type: string
+  primary?: boolean
+  order: number
+}
+
 export default function ConfigPage() {
   const [providerType, setProviderType] = useState<ProviderType>('demo')
   const [baserowConfig, setBaserowConfig] = useState<BaserowConfig>({
@@ -48,11 +70,10 @@ export default function ConfigPage() {
     success: boolean
     message: string
   } | null>(null)
-  const [workspaces, setWorkspaces] = useState<any[]>([])
-  const [tables, setTables] = useState<any[]>([])
-  const [fields, setFields] = useState<any[]>([])
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([])
+  const [tables, setTables] = useState<Table[]>([])
+  const [fields, setFields] = useState<Field[]>([])
   const [selectedWorkspace, setSelectedWorkspace] = useState<string>('')
-  const [selectedTable, setSelectedTable] = useState<string>('')
 
   const testConnection = async () => {
     setTesting(true)
@@ -298,7 +319,6 @@ export default function ConfigPage() {
                             ...baserowConfig,
                             tasksTableId: e.target.value,
                           })
-                          setSelectedTable(e.target.value)
                           loadFields(e.target.value)
                         }}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md"

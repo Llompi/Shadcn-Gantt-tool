@@ -5,6 +5,14 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 
+interface BaserowApplication {
+  id: number
+  name: string
+  order: number
+  type: string
+  permissions?: string
+}
+
 /**
  * GET /api/config/workspaces
  * List all accessible Baserow workspaces/databases
@@ -65,12 +73,12 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const data = await response.json()
+    const data: BaserowApplication[] = await response.json()
 
     // Filter for database applications and transform the response
     const workspaces = data
-      .filter((app: any) => app.type === 'database')
-      .map((app: any) => ({
+      .filter((app) => app.type === 'database')
+      .map((app) => ({
         id: app.id,
         name: app.name,
         order: app.order,
@@ -138,12 +146,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const data = await response.json()
+    const data: BaserowApplication[] = await response.json()
 
     // Filter for database applications
     const workspaces = data
-      .filter((app: any) => app.type === 'database')
-      .map((app: any) => ({
+      .filter((app) => app.type === 'database')
+      .map((app) => ({
         id: app.id,
         name: app.name,
         order: app.order,

@@ -5,6 +5,13 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 
+interface BaserowTable {
+  id: number
+  name: string
+  order: number
+  database_id: number
+}
+
 /**
  * GET /api/config/tables
  * List all tables in a Baserow workspace
@@ -70,11 +77,11 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const tables = await response.json()
+    const tables: BaserowTable[] = await response.json()
 
     return NextResponse.json({
       success: true,
-      tables: tables.map((table: any) => ({
+      tables: tables.map((table) => ({
         id: table.id,
         name: table.name,
         order: table.order,
@@ -141,11 +148,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const tables = await response.json()
+    const tables: BaserowTable[] = await response.json()
 
     return NextResponse.json({
       success: true,
-      tables: tables.map((table: any) => ({
+      tables: tables.map((table) => ({
         id: table.id,
         name: table.name,
         order: table.order,

@@ -5,6 +5,14 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 
+interface BaserowView {
+  id: number
+  name: string
+  type: string
+  order: number
+  table: number
+}
+
 /**
  * GET /api/config/views
  * List all views in a Baserow table
@@ -71,11 +79,11 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const views = await response.json()
+    const views: BaserowView[] = await response.json()
 
     return NextResponse.json({
       success: true,
-      views: views.map((view: any) => ({
+      views: views.map((view) => ({
         id: view.id,
         name: view.name,
         type: view.type,
@@ -143,11 +151,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const views = await response.json()
+    const views: BaserowView[] = await response.json()
 
     return NextResponse.json({
       success: true,
-      views: views.map((view: any) => ({
+      views: views.map((view) => ({
         id: view.id,
         name: view.name,
         type: view.type,
