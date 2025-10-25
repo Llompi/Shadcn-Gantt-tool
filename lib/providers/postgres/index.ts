@@ -13,7 +13,6 @@ export type {
   PostgresStatusRow,
   PostgresQueryParams,
   PostgresPaginatedResult,
-  PostgresFieldMapping,
   PoolStatus,
 } from './types'
-export type { PostgresFieldMapping as PgFieldMapping } from './field-mapping'
+export type { PostgresFieldMapping } from './field-mapping'
