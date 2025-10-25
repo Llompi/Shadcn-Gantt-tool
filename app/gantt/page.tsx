@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { Suspense, useEffect, useState } from "react"
+import { useSearchParams } from "next/navigation"
 import {
   GanttProvider,
   GanttHeader,
@@ -8,51 +9,94 @@ import {
   GanttCreateMarkerTrigger,
   GanttTask,
 } from "@/components/ui/gantt"
-import { TaskStatus } from "@/types/task"
+import { TaskStatus, Task } from "@/types/task"
+import { ClientSessionManager } from "@/lib/client-session-manager"
+import { ClientBaserowProvider } from "@/lib/providers/baserow/client-baserow-provider"
 
-export default function GanttPage() {
+function GanttPageContent() {
+  const searchParams = useSearchParams()
   const [tasks, setTasks] = useState<GanttTask[]>([])
   const [statuses, setStatuses] = useState<TaskStatus[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [isClientMode, setIsClientMode] = useState(false)
+  const [clientProvider, setClientProvider] = useState<ClientBaserowProvider | null>(null)
+
+  // Initialize client mode if needed
+  useEffect(() => {
+    const mode = searchParams.get("mode")
+    const clientConfig = ClientSessionManager.getConfig()
+
+    if (mode === "client" && clientConfig) {
+      setIsClientMode(true)
+      setClientProvider(new ClientBaserowProvider(clientConfig))
+    } else if (mode === "client") {
+      // Client mode requested but no config found
+      setError("No client session found. Please configure client mode first.")
+      setIsLoading(false)
+    }
+  }, [searchParams])
 
   // Load tasks and statuses
   useEffect(() => {
+    if (isClientMode && !clientProvider) {
+      // Wait for client provider to be initialized
+      return
+    }
     loadData()
-  }, [])
+  }, [isClientMode, clientProvider])
 
   const loadData = async () => {
     try {
       setIsLoading(true)
       setError(null)
 
-      // Fetch tasks and statuses in parallel
-      const [tasksResponse, statusesResponse] = await Promise.all([
-        fetch("/api/tasks?all=true"),
-        fetch("/api/statuses"),
-      ])
+      if (isClientMode && clientProvider) {
+        // Client mode: Direct API calls via ClientBaserowProvider
+        const [tasksData, statusesData] = await Promise.all([
+          clientProvider.getAllTasks(),
+          clientProvider.getStatuses(),
+        ])
 
-      if (!tasksResponse.ok || !statusesResponse.ok) {
-        throw new Error("Failed to fetch data")
+        setStatuses(statusesData)
+
+        // Convert to GanttTask format
+        const ganttTasks: GanttTask[] = tasksData.map((task: Task) => ({
+          ...task,
+          startAt: new Date(task.startAt),
+          endAt: new Date(task.endAt),
+        }))
+
+        setTasks(ganttTasks)
+      } else {
+        // Server mode: Fetch via API routes
+        const [tasksResponse, statusesResponse] = await Promise.all([
+          fetch("/api/tasks?all=true"),
+          fetch("/api/statuses"),
+        ])
+
+        if (!tasksResponse.ok || !statusesResponse.ok) {
+          throw new Error("Failed to fetch data")
+        }
+
+        const tasksData = await tasksResponse.json()
+        const statusesData = await statusesResponse.json()
+
+        if (!tasksData.success || !statusesData.success) {
+          throw new Error(tasksData.error || statusesData.error || "Unknown error")
+        }
+
+        setStatuses(statusesData.data)
+
+        // Convert to GanttTask format
+        const ganttTasks: GanttTask[] = tasksData.data.map((task: GanttTask) => ({
+          ...task,
+          startAt: new Date(task.startAt),
+          endAt: new Date(task.endAt),
+        }))
+
+        setTasks(ganttTasks)
       }
-
-      const tasksData = await tasksResponse.json()
-      const statusesData = await statusesResponse.json()
-
-      if (!tasksData.success || !statusesData.success) {
-        throw new Error(tasksData.error || statusesData.error || "Unknown error")
-      }
-
-      setStatuses(statusesData.data)
-
-      // Convert to GanttTask format
-      const ganttTasks: GanttTask[] = tasksData.data.map((task: GanttTask) => ({
-        ...task,
-        startAt: new Date(task.startAt),
-        endAt: new Date(task.endAt),
-      }))
-
-      setTasks(ganttTasks)
     } catch (err) {
       console.error("Error loading data:", err)
       setError(err instanceof Error ? err.message : "Failed to load data")
@@ -72,37 +116,59 @@ export default function GanttPage() {
     )
 
     try {
-      const response = await fetch(`/api/tasks/${taskId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          startAt: startAt.toISOString(),
-          endAt: endAt.toISOString(),
-        }),
-      })
+      if (isClientMode && clientProvider) {
+        // Client mode: Direct API call via provider
+        const updatedTask = await clientProvider.updateTask(taskId, {
+          startAt,
+          endAt,
+        })
 
-      if (!response.ok) {
-        throw new Error("Failed to update task")
-      }
-
-      const result = await response.json()
-
-      if (!result.success) {
-        throw new Error(result.error || "Failed to update task")
-      }
-
-      // Update with server response
-      setTasks((prev) =>
-        prev.map((task) =>
-          task.id === taskId
-            ? {
-                ...task,
-                startAt: new Date(result.data.startAt),
-                endAt: new Date(result.data.endAt),
-              }
-            : task
+        // Update with provider response
+        setTasks((prev) =>
+          prev.map((task) =>
+            task.id === taskId
+              ? {
+                  ...task,
+                  startAt: new Date(updatedTask.startAt),
+                  endAt: new Date(updatedTask.endAt),
+                }
+              : task
+          )
         )
-      )
+      } else {
+        // Server mode: Fetch via API route
+        const response = await fetch(`/api/tasks/${taskId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            startAt: startAt.toISOString(),
+            endAt: endAt.toISOString(),
+          }),
+        })
+
+        if (!response.ok) {
+          throw new Error("Failed to update task")
+        }
+
+        const result = await response.json()
+
+        if (!result.success) {
+          throw new Error(result.error || "Failed to update task")
+        }
+
+        // Update with server response
+        setTasks((prev) =>
+          prev.map((task) =>
+            task.id === taskId
+              ? {
+                  ...task,
+                  startAt: new Date(result.data.startAt),
+                  endAt: new Date(result.data.endAt),
+                }
+              : task
+          )
+        )
+      }
     } catch (err) {
       console.error("Error updating task:", err)
       // Rollback on error
@@ -124,35 +190,55 @@ export default function GanttPage() {
     const defaultStatusId = statuses.length > 0 ? statuses[0].id : undefined
 
     try {
-      const response = await fetch("/api/tasks", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      if (isClientMode && clientProvider) {
+        // Client mode: Direct API call via provider
+        const createdTask = await clientProvider.createTask({
           name,
-          startAt: startAt.toISOString(),
-          endAt: endAt.toISOString(),
+          startAt,
+          endAt,
           statusId: defaultStatusId,
-        }),
-      })
+        })
 
-      if (!response.ok) {
-        throw new Error("Failed to create task")
+        // Add new task to list
+        const newTask: GanttTask = {
+          ...createdTask,
+          startAt: new Date(createdTask.startAt),
+          endAt: new Date(createdTask.endAt),
+        }
+
+        setTasks((prev) => [...prev, newTask])
+      } else {
+        // Server mode: Fetch via API route
+        const response = await fetch("/api/tasks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name,
+            startAt: startAt.toISOString(),
+            endAt: endAt.toISOString(),
+            statusId: defaultStatusId,
+          }),
+        })
+
+        if (!response.ok) {
+          throw new Error("Failed to create task")
+        }
+
+        const result = await response.json()
+
+        if (!result.success) {
+          throw new Error(result.error || "Failed to create task")
+        }
+
+        // Add new task to list
+        const newTask: GanttTask = {
+          ...result.data,
+          startAt: new Date(result.data.startAt),
+          endAt: new Date(result.data.endAt),
+        }
+
+        setTasks((prev) => [...prev, newTask])
       }
-
-      const result = await response.json()
-
-      if (!result.success) {
-        throw new Error(result.error || "Failed to create task")
-      }
-
-      // Add new task to list
-      const newTask: GanttTask = {
-        ...result.data,
-        startAt: new Date(result.data.startAt),
-        endAt: new Date(result.data.endAt),
-      }
-
-      setTasks((prev) => [...prev, newTask])
     } catch (err) {
       console.error("Error creating task:", err)
       alert("Failed to create task. Please try again.")
@@ -196,6 +282,34 @@ export default function GanttPage() {
     >
       <div className="min-h-screen bg-background">
         <div className="container mx-auto py-8">
+          {/* Client Mode Banner */}
+          {isClientMode && (
+            <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                    <span className="font-semibold text-green-900">
+                      ⚡ Client Mode Active
+                    </span>
+                  </div>
+                  <span className="text-sm text-green-700">
+                    Direct browser connection to Baserow
+                  </span>
+                </div>
+                <button
+                  onClick={() => {
+                    ClientSessionManager.clearConfig()
+                    window.location.href = "/config"
+                  }}
+                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm"
+                >
+                  End Session
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="mb-6 flex items-center justify-between">
             <h1 className="text-3xl font-bold">Project Gantt Chart</h1>
             <div className="flex gap-2">
@@ -243,5 +357,19 @@ export default function GanttPage() {
         </div>
       </div>
     </GanttProvider>
+  )
+}
+
+export default function GanttPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-lg">Loading Gantt chart...</div>
+        </div>
+      }
+    >
+      <GanttPageContent />
+    </Suspense>
   )
 }
