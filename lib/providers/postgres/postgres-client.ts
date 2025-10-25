@@ -4,7 +4,7 @@
  * @created 2025-10-25
  */
 
-import { Pool, PoolClient, QueryResult } from 'pg'
+import { Pool, PoolClient, QueryResult, QueryResultRow } from 'pg'
 import type {
   PostgresConfig,
   PostgresTaskRow,
@@ -48,7 +48,7 @@ export class PostgresClient {
    * @param params - Query parameters (for parameterized queries)
    * @returns Query result
    */
-  private async query<T = unknown>(
+  private async query<T extends QueryResultRow = QueryResultRow>(
     text: string,
     params?: unknown[]
   ): Promise<QueryResult<T>> {
