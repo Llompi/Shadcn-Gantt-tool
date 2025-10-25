@@ -205,7 +205,7 @@ export function FieldMapper({
           <div className="ml-3">
             <h3 className="text-sm font-medium text-blue-800">Auto-detected Field Mappings</h3>
             <p className="mt-1 text-sm text-blue-700">
-              We've automatically detected the best field matches based on field names and types.
+              We&apos;ve automatically detected the best field matches based on field names and types.
               Review and adjust the mappings below. Required fields are marked with *.
             </p>
           </div>

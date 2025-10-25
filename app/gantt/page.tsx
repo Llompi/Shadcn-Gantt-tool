@@ -1,6 +1,6 @@
 "use client"
 
-import { Suspense, useEffect, useState } from "react"
+import { Suspense, useCallback, useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import {
   GanttProvider,
@@ -38,17 +38,8 @@ function GanttPageContent() {
     }
   }, [searchParams])
 
-  // Load tasks and statuses
-  useEffect(() => {
-    if (isClientMode && !clientProvider) {
-      // Wait for client provider to be initialized
-      return
-    }
-    loadData()
-  }, [isClientMode, clientProvider])
-
   // Validate and sanitize task data
-  const validateTask = (task: Task): { valid: boolean; reason?: string } => {
+  const validateTask = useCallback((task: Task): { valid: boolean; reason?: string } => {
     // Check required fields
     if (!task.id) {
       return { valid: false, reason: 'Missing task ID' }
@@ -78,9 +69,9 @@ function GanttPageContent() {
     }
 
     return { valid: true }
-  }
+  }, [])
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setIsLoading(true)
       setError(null)
@@ -162,7 +153,16 @@ function GanttPageContent() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [isClientMode, clientProvider, validateTask])
+
+  // Load tasks and statuses
+  useEffect(() => {
+    if (isClientMode && !clientProvider) {
+      // Wait for client provider to be initialized
+      return
+    }
+    loadData()
+  }, [isClientMode, clientProvider, loadData])
 
   // Handle task move (drag & resize)
   const handleTaskMove = async (taskId: string, startAt: Date, endAt: Date) => {
