@@ -48,9 +48,9 @@ export class PostgresClient {
    * @param params - Query parameters (for parameterized queries)
    * @returns Query result
    */
-  private async query<T = any>(
+  private async query<T = unknown>(
     text: string,
-    params?: any[]
+    params?: unknown[]
   ): Promise<QueryResult<T>> {
     try {
       return await this.pool.query<T>(text, params)
@@ -98,7 +98,7 @@ export class PostgresClient {
 
     // Build WHERE clause
     const conditions: string[] = []
-    const values: any[] = []
+    const values: unknown[] = []
     let paramIndex = 1
 
     if (startDate) {
@@ -227,7 +227,7 @@ export class PostgresClient {
   ): Promise<PostgresTaskRow> {
     const fields = this.fieldMapping.tasks
     const updates: string[] = []
-    const values: any[] = []
+    const values: unknown[] = []
     let paramIndex = 1
 
     // Build SET clause dynamically
@@ -367,7 +367,7 @@ export class PostgresClient {
   ): Promise<PostgresStatusRow> {
     const fields = this.fieldMapping.statuses
     const updates: string[] = []
-    const values: any[] = []
+    const values: unknown[] = []
     let paramIndex = 1
 
     if (data.name !== undefined) {
