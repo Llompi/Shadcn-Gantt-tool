@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { cn } from "@/lib/utils"
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react"
+import { ChevronLeft, ChevronRight, Plus, Diamond } from "lucide-react"
 
 // Types
 export type TimescaleType = "day" | "week" | "month" | "quarter"
@@ -44,6 +44,45 @@ export function useGantt() {
   return context
 }
 
+// Helper functions for timeline calculations
+function getStartOfWeek(date: Date): Date {
+  const d = new Date(date)
+  const day = d.getDay()
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1) // Adjust when day is Sunday
+  d.setDate(diff)
+  d.setHours(0, 0, 0, 0)
+  return d
+}
+
+function getStartOfMonth(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), 1, 0, 0, 0, 0)
+}
+
+function getStartOfQuarter(date: Date): Date {
+  const quarter = Math.floor(date.getMonth() / 3)
+  return new Date(date.getFullYear(), quarter * 3, 1, 0, 0, 0, 0)
+}
+
+function addDays(date: Date, days: number): Date {
+  const result = new Date(date)
+  result.setDate(result.getDate() + days)
+  return result
+}
+
+function addWeeks(date: Date, weeks: number): Date {
+  return addDays(date, weeks * 7)
+}
+
+function addMonths(date: Date, months: number): Date {
+  const result = new Date(date)
+  result.setMonth(result.getMonth() + months)
+  return result
+}
+
+function addQuarters(date: Date, quarters: number): Date {
+  return addMonths(date, quarters * 3)
+}
+
 // Provider
 interface GanttProviderProps {
   children: React.ReactNode
@@ -78,6 +117,44 @@ export function GanttProvider({
     setViewStart(start)
     setViewEnd(end)
   }, [])
+
+  // Adjust view range when timescale changes to align with period boundaries
+  React.useEffect(() => {
+    const now = new Date()
+    let newStart: Date
+    let newEnd: Date
+
+    switch (timescale) {
+      case "day":
+        // Show 30 days before and 60 days after today
+        newStart = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+        newEnd = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000)
+        break
+      case "week":
+        // Show 12 weeks before and 24 weeks after today, aligned to week start
+        const weekStart = getStartOfWeek(now)
+        newStart = addWeeks(weekStart, -12)
+        newEnd = addWeeks(weekStart, 24)
+        break
+      case "month":
+        // Show 6 months before and 12 months after today, aligned to month start
+        const monthStart = getStartOfMonth(now)
+        newStart = addMonths(monthStart, -6)
+        newEnd = addMonths(monthStart, 12)
+        break
+      case "quarter":
+        // Show 4 quarters before and 8 quarters after today, aligned to quarter start
+        const quarterStart = getStartOfQuarter(now)
+        newStart = addQuarters(quarterStart, -4)
+        newEnd = addQuarters(quarterStart, 8)
+        break
+      default:
+        return
+    }
+
+    setViewStart(newStart)
+    setViewEnd(newEnd)
+  }, [timescale])
 
   return (
     <GanttContext.Provider
@@ -162,45 +239,6 @@ export function GanttHeader({ className }: { className?: string }) {
       </div>
     </div>
   )
-}
-
-// Helper functions for timeline calculations
-function getStartOfWeek(date: Date): Date {
-  const d = new Date(date)
-  const day = d.getDay()
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1) // Adjust when day is Sunday
-  d.setDate(diff)
-  d.setHours(0, 0, 0, 0)
-  return d
-}
-
-function getStartOfMonth(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth(), 1, 0, 0, 0, 0)
-}
-
-function getStartOfQuarter(date: Date): Date {
-  const quarter = Math.floor(date.getMonth() / 3)
-  return new Date(date.getFullYear(), quarter * 3, 1, 0, 0, 0, 0)
-}
-
-function addDays(date: Date, days: number): Date {
-  const result = new Date(date)
-  result.setDate(result.getDate() + days)
-  return result
-}
-
-function addWeeks(date: Date, weeks: number): Date {
-  return addDays(date, weeks * 7)
-}
-
-function addMonths(date: Date, months: number): Date {
-  const result = new Date(date)
-  result.setMonth(result.getMonth() + months)
-  return result
-}
-
-function addQuarters(date: Date, quarters: number): Date {
-  return addMonths(date, quarters * 3)
 }
 
 // Timeline Grid with hierarchical time header
@@ -427,6 +465,9 @@ export function GanttFeatureItem({ task }: { task: GanttTask }) {
   const leftPercent = (startOffset / totalDays) * 100
   const widthPercent = (duration / totalDays) * 100
 
+  // Check if this is a milestone (same start and end date)
+  const isMilestone = task.startAt.toDateString() === task.endAt.toDateString()
+
   const handleMouseDown = (e: React.MouseEvent, type: "move" | "resize-start" | "resize-end") => {
     e.preventDefault()
     e.stopPropagation()
@@ -497,6 +538,40 @@ export function GanttFeatureItem({ task }: { task: GanttTask }) {
   }, [isDragging, isResizing, dragOffset, task, totalDays, viewStart, onTaskMove])
 
   const backgroundColor = task.status?.color || "#3b82f6"
+
+  // Render milestone icon for tasks with same start and end date
+  if (isMilestone) {
+    return (
+      <div
+        className="absolute cursor-pointer transition-opacity hover:opacity-80 flex items-center justify-center"
+        style={{
+          left: `${Math.max(0, leftPercent)}%`,
+          opacity: isDragging ? 0.7 : 1,
+          transform: 'translateX(-50%)',
+        }}
+        onMouseDown={(e) => handleMouseDown(e, "move")}
+        onClick={() => onTaskClick?.(task)}
+        title={`${task.name}\n${task.startAt.toLocaleDateString()}`}
+      >
+        <Diamond
+          className="w-8 h-8"
+          fill={backgroundColor}
+          stroke={backgroundColor}
+          strokeWidth={2}
+        />
+        <span
+          className="absolute text-xs font-bold whitespace-nowrap"
+          style={{
+            left: '100%',
+            marginLeft: '8px',
+            color: backgroundColor,
+          }}
+        >
+          {task.name}
+        </span>
+      </div>
+    )
+  }
 
   return (
     <div
@@ -579,18 +654,20 @@ export function GanttFeatureList({ className }: { className?: string }) {
   }, [viewStart, viewEnd, timescale, setViewRange, setTimescale])
 
   return (
-    <div ref={containerRef} className={cn("relative", className)}>
-      <TimelineGrid />
-      <div id="gantt-timeline-container" className="relative min-h-[400px] p-4">
-        <GanttToday />
-        <div className="space-y-2">
-          {tasks.map((task) => (
-            <div key={task.id} className="relative h-12">
-              <div className="absolute inset-y-0 left-0 right-0">
-                <GanttFeatureItem task={task} />
+    <div ref={containerRef} className={cn("relative overflow-x-auto", className)}>
+      <div className="min-w-full">
+        <TimelineGrid />
+        <div id="gantt-timeline-container" className="relative min-h-[400px] p-4">
+          <GanttToday />
+          <div className="space-y-2">
+            {tasks.map((task) => (
+              <div key={task.id} className="relative h-12">
+                <div className="absolute inset-y-0 left-0 right-0">
+                  <GanttFeatureItem task={task} />
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
     </div>
