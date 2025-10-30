@@ -5,12 +5,17 @@ import { Task, TaskStatus } from "@/types/task"
 import { Download, Upload, Trash2 } from "lucide-react"
 import * as XLSX from "xlsx"
 
+export type TimescaleType = "day" | "week" | "month" | "quarter"
+
 interface TaskTableProps {
   tasks: Task[]
   statuses: TaskStatus[]
   onTaskUpdate: (taskId: string, updates: Partial<Task>) => Promise<void>
   onTaskDelete?: (taskId: string) => Promise<void>
   onTasksImport: (tasks: Partial<Task>[]) => Promise<void>
+  viewStart?: Date
+  viewEnd?: Date
+  timescale?: TimescaleType
 }
 
 export function TaskTable({
@@ -19,6 +24,9 @@ export function TaskTable({
   onTaskUpdate,
   onTaskDelete,
   onTasksImport,
+  viewStart,
+  viewEnd,
+  timescale = "day",
 }: TaskTableProps) {
   const [editingCell, setEditingCell] = useState<{ taskId: string; field: string } | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -108,9 +116,59 @@ export function TaskTable({
     document.body.removeChild(link)
   }
 
-  // Export to Excel
+  // Helper functions for timeline calculations
+  const getStartOfWeek = (date: Date): Date => {
+    const d = new Date(date)
+    const day = d.getDay()
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1)
+    d.setDate(diff)
+    d.setHours(0, 0, 0, 0)
+    return d
+  }
+
+  const getStartOfMonth = (date: Date): Date => {
+    return new Date(date.getFullYear(), date.getMonth(), 1, 0, 0, 0, 0)
+  }
+
+  const getStartOfQuarter = (date: Date): Date => {
+    const quarter = Math.floor(date.getMonth() / 3)
+    return new Date(date.getFullYear(), quarter * 3, 1, 0, 0, 0, 0)
+  }
+
+  const addDays = (date: Date, days: number): Date => {
+    const result = new Date(date)
+    result.setDate(result.getDate() + days)
+    return result
+  }
+
+  const addWeeks = (date: Date, weeks: number): Date => {
+    return addDays(date, weeks * 7)
+  }
+
+  const addMonths = (date: Date, months: number): Date => {
+    const result = new Date(date)
+    result.setMonth(result.getMonth() + months)
+    return result
+  }
+
+  const addQuarters = (date: Date, quarters: number): Date => {
+    return addMonths(date, quarters * 3)
+  }
+
+  const getWeekNumber = (date: Date): number => {
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
+    const dayNum = d.getUTCDay() || 7
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum)
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
+    return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7)
+  }
+
+  // Export to Excel with Gantt chart visualization
   const exportToExcel = () => {
-    const data = tasks.map((task) => ({
+    const wb = XLSX.utils.book_new()
+
+    // Sheet 1: Task data
+    const taskData = tasks.map((task) => ({
       ID: task.id,
       Name: task.name,
       "Start Date": formatDate(task.startAt),
@@ -122,24 +180,258 @@ export function TaskTable({
       Progress: task.progress || 0,
     }))
 
-    const ws = XLSX.utils.json_to_sheet(data)
-    const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, "Tasks")
-
-    // Set column widths
-    ws["!cols"] = [
-      { wch: 10 }, // ID
-      { wch: 30 }, // Name
-      { wch: 12 }, // Start Date
-      { wch: 12 }, // End Date
-      { wch: 15 }, // Status
-      { wch: 20 }, // Owner
-      { wch: 20 }, // Group
-      { wch: 40 }, // Description
-      { wch: 10 }, // Progress
+    const wsData = XLSX.utils.json_to_sheet(taskData)
+    wsData["!cols"] = [
+      { wch: 10 }, { wch: 30 }, { wch: 12 }, { wch: 12 },
+      { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 40 }, { wch: 10 },
     ]
+    XLSX.utils.book_append_sheet(wb, wsData, "Tasks")
 
-    XLSX.writeFile(wb, `tasks-${new Date().toISOString().split("T")[0]}.xlsx`)
+    // Sheet 2: Gantt Chart visualization
+    if (viewStart && viewEnd) {
+      const ganttData = createGanttChartData(viewStart, viewEnd, timescale)
+      const wsGantt = XLSX.utils.aoa_to_sheet(ganttData.data)
+
+      // Set column widths for Gantt chart
+      wsGantt["!cols"] = [
+        { wch: 25 }, // Task name column
+        ...Array(ganttData.periodCount).fill({ wch: 4 }) // Timeline columns
+      ]
+
+      // Set row heights
+      wsGantt["!rows"] = Array(ganttData.data.length).fill({ hpt: 20 })
+
+      // Apply cell styling for better visualization
+      const range = XLSX.utils.decode_range(wsGantt["!ref"] || "A1")
+      for (let R = range.s.r; R <= range.e.r; ++R) {
+        for (let C = range.s.c; C <= range.e.c; ++C) {
+          const cellAddress = XLSX.utils.encode_cell({ r: R, c: C })
+          if (!wsGantt[cellAddress]) continue
+
+          const cell = wsGantt[cellAddress]
+
+          // Header rows styling
+          if (R === 0 || R === 1) {
+            cell.s = {
+              font: { bold: true, sz: 11 },
+              fill: { fgColor: { rgb: "E0E0E0" } },
+              alignment: { horizontal: "center", vertical: "center" },
+              border: {
+                top: { style: "thin", color: { rgb: "000000" } },
+                bottom: { style: "thin", color: { rgb: "000000" } },
+                left: { style: "thin", color: { rgb: "000000" } },
+                right: { style: "thin", color: { rgb: "000000" } },
+              },
+            }
+          }
+          // Task name column styling
+          else if (C === 0) {
+            cell.s = {
+              font: { sz: 10 },
+              alignment: { horizontal: "left", vertical: "center" },
+              border: {
+                top: { style: "thin", color: { rgb: "CCCCCC" } },
+                bottom: { style: "thin", color: { rgb: "CCCCCC" } },
+                left: { style: "thin", color: { rgb: "CCCCCC" } },
+                right: { style: "thin", color: { rgb: "CCCCCC" } },
+              },
+            }
+          }
+          // Task bar cells (with █ character)
+          else if (cell.v === "█") {
+            const taskIndex = R - 2 // Subtract header rows
+            const task = tasks[taskIndex]
+            const statusColor = task?.status?.color || "#3b82f6"
+            const rgb = statusColor.replace("#", "")
+
+            cell.s = {
+              font: { sz: 10, color: { rgb } },
+              fill: { fgColor: { rgb } },
+              alignment: { horizontal: "center", vertical: "center" },
+              border: {
+                top: { style: "thin", color: { rgb } },
+                bottom: { style: "thin", color: { rgb } },
+                left: { style: "thin", color: { rgb } },
+                right: { style: "thin", color: { rgb } },
+              },
+            }
+          }
+          // Empty timeline cells
+          else {
+            cell.s = {
+              border: {
+                top: { style: "hair", color: { rgb: "EEEEEE" } },
+                bottom: { style: "hair", color: { rgb: "EEEEEE" } },
+                left: { style: "hair", color: { rgb: "EEEEEE" } },
+                right: { style: "hair", color: { rgb: "EEEEEE" } },
+              },
+            }
+          }
+        }
+      }
+
+      XLSX.utils.book_append_sheet(wb, wsGantt, "Gantt Chart")
+    }
+
+    XLSX.writeFile(wb, `tasks-gantt-${new Date().toISOString().split("T")[0]}.xlsx`)
+  }
+
+  // Create Gantt chart data for Excel
+  const createGanttChartData = (start: Date, end: Date, scale: TimescaleType) => {
+    const periods: Array<{ date: Date; label: string }> = []
+    const timeHeaders: Array<{ label: string; span: number }> = []
+
+    let current = new Date(start)
+    const endDate = new Date(end)
+
+    // Calculate periods based on timescale
+    if (scale === "day") {
+      let currentMonth = ""
+      let monthSpan = 0
+
+      while (current <= endDate) {
+        const monthYear = current.toLocaleDateString("en", { month: "short", year: "numeric" })
+
+        if (monthYear !== currentMonth) {
+          if (monthSpan > 0) {
+            timeHeaders.push({ label: currentMonth, span: monthSpan })
+          }
+          currentMonth = monthYear
+          monthSpan = 0
+        }
+
+        monthSpan++
+        periods.push({ date: new Date(current), label: current.getDate().toString() })
+        current = addDays(current, 1)
+      }
+
+      if (monthSpan > 0) {
+        timeHeaders.push({ label: currentMonth, span: monthSpan })
+      }
+    } else if (scale === "week") {
+      current = getStartOfWeek(current)
+      let currentYear = ""
+      let yearSpan = 0
+
+      while (current <= endDate) {
+        const year = current.getFullYear().toString()
+
+        if (year !== currentYear) {
+          if (yearSpan > 0) {
+            timeHeaders.push({ label: currentYear, span: yearSpan })
+          }
+          currentYear = year
+          yearSpan = 0
+        }
+
+        yearSpan++
+        periods.push({ date: new Date(current), label: `W${getWeekNumber(current)}` })
+        current = addWeeks(current, 1)
+      }
+
+      if (yearSpan > 0) {
+        timeHeaders.push({ label: currentYear, span: yearSpan })
+      }
+    } else if (scale === "month") {
+      current = getStartOfMonth(current)
+      let currentYear = ""
+      let yearSpan = 0
+
+      while (current <= endDate) {
+        const year = current.getFullYear().toString()
+
+        if (year !== currentYear) {
+          if (yearSpan > 0) {
+            timeHeaders.push({ label: currentYear, span: yearSpan })
+          }
+          currentYear = year
+          yearSpan = 0
+        }
+
+        yearSpan++
+        periods.push({ date: new Date(current), label: current.toLocaleDateString("en", { month: "short" }) })
+        current = addMonths(current, 1)
+      }
+
+      if (yearSpan > 0) {
+        timeHeaders.push({ label: currentYear, span: yearSpan })
+      }
+    } else if (scale === "quarter") {
+      current = getStartOfQuarter(current)
+      let currentYear = ""
+      let yearSpan = 0
+
+      while (current <= endDate) {
+        const year = current.getFullYear().toString()
+
+        if (year !== currentYear) {
+          if (yearSpan > 0) {
+            timeHeaders.push({ label: currentYear, span: yearSpan })
+          }
+          currentYear = year
+          yearSpan = 0
+        }
+
+        yearSpan++
+        const quarter = Math.floor(current.getMonth() / 3) + 1
+        periods.push({ date: new Date(current), label: `Q${quarter}` })
+        current = addQuarters(current, 1)
+      }
+
+      if (yearSpan > 0) {
+        timeHeaders.push({ label: currentYear, span: yearSpan })
+      }
+    }
+
+    // Build header rows
+    const headerRow1: string[] = ["Task"]
+    const headerRow2: string[] = [""]
+
+    for (const header of timeHeaders) {
+      headerRow1.push(header.label)
+      for (let i = 1; i < header.span; i++) {
+        headerRow1.push("")
+      }
+    }
+
+    for (const period of periods) {
+      headerRow2.push(period.label)
+    }
+
+    // Build task rows with visual bars
+    const taskRows = tasks.map((task) => {
+      const row: string[] = [task.name]
+
+      for (const period of periods) {
+        const periodStart = period.date
+        let periodEnd: Date
+
+        if (scale === "day") {
+          periodEnd = addDays(periodStart, 1)
+        } else if (scale === "week") {
+          periodEnd = addWeeks(periodStart, 1)
+        } else if (scale === "month") {
+          periodEnd = addMonths(periodStart, 1)
+        } else {
+          periodEnd = addQuarters(periodStart, 1)
+        }
+
+        // Check if task overlaps with this period
+        const taskStart = new Date(task.startAt)
+        const taskEnd = new Date(task.endAt)
+
+        const overlaps = taskStart < periodEnd && taskEnd >= periodStart
+
+        row.push(overlaps ? "█" : "")
+      }
+
+      return row
+    })
+
+    return {
+      data: [headerRow1, headerRow2, ...taskRows],
+      periodCount: periods.length,
+    }
   }
 
   // Import from file (CSV or Excel)

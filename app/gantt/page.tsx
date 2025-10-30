@@ -8,11 +8,53 @@ import {
   GanttFeatureList,
   GanttCreateMarkerTrigger,
   GanttTask,
+  useGantt,
 } from "@/components/ui/gantt"
 import { TaskTable } from "@/components/ui/task-table"
 import { TaskStatus, Task } from "@/types/task"
 import { ClientSessionManager } from "@/lib/client-session-manager"
 import { ClientBaserowProvider } from "@/lib/providers/baserow/client-baserow-provider"
+
+// Inner component that can access Gantt context
+function GanttContent({
+  tasks,
+  statuses,
+  onTaskUpdate,
+  onTaskDelete,
+  onTasksImport,
+}: {
+  tasks: GanttTask[]
+  statuses: TaskStatus[]
+  onTaskUpdate: (taskId: string, updates: Partial<Task>) => Promise<void>
+  onTaskDelete: (taskId: string) => Promise<void>
+  onTasksImport: (tasks: Partial<Task>[]) => Promise<void>
+}) {
+  const { viewStart, viewEnd, timescale } = useGantt()
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+      {/* Task Table */}
+      <div className="lg:col-span-5 border rounded-lg overflow-hidden shadow-lg">
+        <TaskTable
+          tasks={tasks}
+          statuses={statuses}
+          onTaskUpdate={onTaskUpdate}
+          onTaskDelete={onTaskDelete}
+          onTasksImport={onTasksImport}
+          viewStart={viewStart}
+          viewEnd={viewEnd}
+          timescale={timescale}
+        />
+      </div>
+
+      {/* Gantt Chart */}
+      <div className="lg:col-span-7 border rounded-lg overflow-hidden shadow-lg">
+        <GanttHeader />
+        <GanttFeatureList />
+      </div>
+    </div>
+  )
+}
 
 function GanttPageContent() {
   const searchParams = useSearchParams()
@@ -607,24 +649,13 @@ function GanttPageContent() {
               <GanttCreateMarkerTrigger />
             </div>
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-              {/* Task Table */}
-              <div className="lg:col-span-5 border rounded-lg overflow-hidden shadow-lg">
-                <TaskTable
-                  tasks={tasks}
-                  statuses={statuses}
-                  onTaskUpdate={handleTaskUpdate}
-                  onTaskDelete={handleTaskDelete}
-                  onTasksImport={handleTasksImport}
-                />
-              </div>
-
-              {/* Gantt Chart */}
-              <div className="lg:col-span-7 border rounded-lg overflow-hidden shadow-lg">
-                <GanttHeader />
-                <GanttFeatureList />
-              </div>
-            </div>
+            <GanttContent
+              tasks={tasks}
+              statuses={statuses}
+              onTaskUpdate={handleTaskUpdate}
+              onTaskDelete={handleTaskDelete}
+              onTasksImport={handleTasksImport}
+            />
           )}
 
           {/* Status Legend */}

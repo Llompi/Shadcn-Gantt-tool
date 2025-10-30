@@ -5,6 +5,8 @@ import { cn } from "@/lib/utils"
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react"
 
 // Types
+export type TimescaleType = "day" | "week" | "month" | "quarter"
+
 export interface GanttTask {
   id: string
   name: string
@@ -24,15 +26,17 @@ interface GanttContextValue {
   tasks: GanttTask[]
   viewStart: Date
   viewEnd: Date
+  timescale: TimescaleType
   onTaskMove?: (taskId: string, startAt: Date, endAt: Date) => Promise<void>
   onTaskCreate?: (date: Date) => Promise<void>
   onTaskClick?: (task: GanttTask) => void
   setViewRange: (start: Date, end: Date) => void
+  setTimescale: (timescale: TimescaleType) => void
 }
 
 const GanttContext = React.createContext<GanttContextValue | null>(null)
 
-function useGantt() {
+export function useGantt() {
   const context = React.useContext(GanttContext)
   if (!context) {
     throw new Error("Gantt components must be used within GanttProvider")
@@ -49,6 +53,7 @@ interface GanttProviderProps {
   onTaskClick?: (task: GanttTask) => void
   defaultViewStart?: Date
   defaultViewEnd?: Date
+  defaultTimescale?: TimescaleType
 }
 
 export function GanttProvider({
@@ -59,6 +64,7 @@ export function GanttProvider({
   onTaskClick,
   defaultViewStart,
   defaultViewEnd,
+  defaultTimescale = "day",
 }: GanttProviderProps) {
   const [viewStart, setViewStart] = React.useState<Date>(
     defaultViewStart || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
@@ -66,6 +72,7 @@ export function GanttProvider({
   const [viewEnd, setViewEnd] = React.useState<Date>(
     defaultViewEnd || new Date(Date.now() + 60 * 24 * 60 * 60 * 1000)
   )
+  const [timescale, setTimescale] = React.useState<TimescaleType>(defaultTimescale)
 
   const setViewRange = React.useCallback((start: Date, end: Date) => {
     setViewStart(start)
@@ -78,10 +85,12 @@ export function GanttProvider({
         tasks,
         viewStart,
         viewEnd,
+        timescale,
         onTaskMove,
         onTaskCreate,
         onTaskClick,
         setViewRange,
+        setTimescale,
       }}
     >
       {children}
@@ -91,7 +100,7 @@ export function GanttProvider({
 
 // Header with navigation
 export function GanttHeader({ className }: { className?: string }) {
-  const { viewStart, viewEnd, setViewRange } = useGantt()
+  const { viewStart, viewEnd, timescale, setViewRange, setTimescale } = useGantt()
 
   const shiftView = (days: number) => {
     const shift = days * 24 * 60 * 60 * 1000
@@ -106,47 +115,255 @@ export function GanttHeader({ className }: { className?: string }) {
   }
 
   return (
-    <div className={cn("flex items-center justify-between p-4 border-b", className)}>
-      <div className="flex items-center gap-2">
-        <button
-          onClick={() => shiftView(-7)}
-          className="p-2 hover:bg-accent rounded-md transition-colors"
-          title="Previous week"
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </button>
-        <button
-          onClick={resetView}
-          className="px-3 py-1 text-sm hover:bg-accent rounded-md transition-colors"
-        >
-          Today
-        </button>
-        <button
-          onClick={() => shiftView(7)}
-          className="p-2 hover:bg-accent rounded-md transition-colors"
-          title="Next week"
-        >
-          <ChevronRight className="h-4 w-4" />
-        </button>
+    <div className={cn("flex flex-col gap-2 p-4 border-b", className)}>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => shiftView(-7)}
+            className="p-2 hover:bg-accent rounded-md transition-colors"
+            title="Previous week"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <button
+            onClick={resetView}
+            className="px-3 py-1 text-sm hover:bg-accent rounded-md transition-colors"
+          >
+            Today
+          </button>
+          <button
+            onClick={() => shiftView(7)}
+            className="p-2 hover:bg-accent rounded-md transition-colors"
+            title="Next week"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="text-sm text-muted-foreground">
+          {viewStart.toLocaleDateString()} - {viewEnd.toLocaleDateString()}
+        </div>
       </div>
-      <div className="text-sm text-muted-foreground">
-        {viewStart.toLocaleDateString()} - {viewEnd.toLocaleDateString()}
+      <div className="flex items-center gap-2">
+        <span className="text-sm text-muted-foreground">Timescale:</span>
+        {(["day", "week", "month", "quarter"] as TimescaleType[]).map((scale) => (
+          <button
+            key={scale}
+            onClick={() => setTimescale(scale)}
+            className={cn(
+              "px-3 py-1 text-sm rounded-md transition-colors",
+              timescale === scale
+                ? "bg-primary text-primary-foreground"
+                : "hover:bg-accent"
+            )}
+          >
+            {scale.charAt(0).toUpperCase() + scale.slice(1)}
+          </button>
+        ))}
       </div>
     </div>
   )
 }
 
-// Timeline Grid
+// Helper functions for timeline calculations
+function getStartOfWeek(date: Date): Date {
+  const d = new Date(date)
+  const day = d.getDay()
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1) // Adjust when day is Sunday
+  d.setDate(diff)
+  d.setHours(0, 0, 0, 0)
+  return d
+}
+
+function getStartOfMonth(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), 1, 0, 0, 0, 0)
+}
+
+function getStartOfQuarter(date: Date): Date {
+  const quarter = Math.floor(date.getMonth() / 3)
+  return new Date(date.getFullYear(), quarter * 3, 1, 0, 0, 0, 0)
+}
+
+function addDays(date: Date, days: number): Date {
+  const result = new Date(date)
+  result.setDate(result.getDate() + days)
+  return result
+}
+
+function addWeeks(date: Date, weeks: number): Date {
+  return addDays(date, weeks * 7)
+}
+
+function addMonths(date: Date, months: number): Date {
+  const result = new Date(date)
+  result.setMonth(result.getMonth() + months)
+  return result
+}
+
+function addQuarters(date: Date, quarters: number): Date {
+  return addMonths(date, quarters * 3)
+}
+
+// Timeline Grid with hierarchical time header
 function TimelineGrid({ className }: { className?: string }) {
-  const { viewStart, viewEnd } = useGantt()
-  const days = Math.ceil((viewEnd.getTime() - viewStart.getTime()) / (24 * 60 * 60 * 1000))
+  const { viewStart, viewEnd, timescale } = useGantt()
+
+  // Calculate periods based on timescale
+  const getPeriods = () => {
+    const periods: Array<{ date: Date; label: string; subLabel?: string }> = []
+    const timeHeaders: Array<{ label: string; span: number }> = []
+
+    let current = new Date(viewStart)
+    const end = new Date(viewEnd)
+
+    if (timescale === "day") {
+      // Day view: Show months as headers, days as periods
+      let currentMonth = ""
+      let monthSpan = 0
+
+      while (current <= end) {
+        const monthYear = current.toLocaleDateString("en", { month: "long", year: "numeric" })
+
+        if (monthYear !== currentMonth) {
+          if (monthSpan > 0) {
+            timeHeaders.push({ label: currentMonth, span: monthSpan })
+          }
+          currentMonth = monthYear
+          monthSpan = 0
+        }
+
+        monthSpan++
+        periods.push({
+          date: new Date(current),
+          label: current.getDate().toString(),
+          subLabel: current.toLocaleDateString("en", { weekday: "short" }),
+        })
+
+        current = addDays(current, 1)
+      }
+
+      if (monthSpan > 0) {
+        timeHeaders.push({ label: currentMonth, span: monthSpan })
+      }
+    } else if (timescale === "week") {
+      // Week view: Show years as headers, weeks as periods
+      let currentYear = ""
+      let yearSpan = 0
+
+      current = getStartOfWeek(current)
+
+      while (current <= end) {
+        const year = current.getFullYear().toString()
+
+        if (year !== currentYear) {
+          if (yearSpan > 0) {
+            timeHeaders.push({ label: currentYear, span: yearSpan })
+          }
+          currentYear = year
+          yearSpan = 0
+        }
+
+        yearSpan++
+        periods.push({
+          date: new Date(current),
+          label: `W${getWeekNumber(current)}`,
+          subLabel: `${current.getDate()}/${current.getMonth() + 1}`,
+        })
+
+        current = addWeeks(current, 1)
+      }
+
+      if (yearSpan > 0) {
+        timeHeaders.push({ label: currentYear, span: yearSpan })
+      }
+    } else if (timescale === "month") {
+      // Month view: Show years as headers, months as periods
+      let currentYear = ""
+      let yearSpan = 0
+
+      current = getStartOfMonth(current)
+
+      while (current <= end) {
+        const year = current.getFullYear().toString()
+
+        if (year !== currentYear) {
+          if (yearSpan > 0) {
+            timeHeaders.push({ label: currentYear, span: yearSpan })
+          }
+          currentYear = year
+          yearSpan = 0
+        }
+
+        yearSpan++
+        periods.push({
+          date: new Date(current),
+          label: current.toLocaleDateString("en", { month: "short" }),
+          subLabel: current.getFullYear().toString().slice(-2),
+        })
+
+        current = addMonths(current, 1)
+      }
+
+      if (yearSpan > 0) {
+        timeHeaders.push({ label: currentYear, span: yearSpan })
+      }
+    } else if (timescale === "quarter") {
+      // Quarter view: Show years as headers, quarters as periods
+      let currentYear = ""
+      let yearSpan = 0
+
+      current = getStartOfQuarter(current)
+
+      while (current <= end) {
+        const year = current.getFullYear().toString()
+
+        if (year !== currentYear) {
+          if (yearSpan > 0) {
+            timeHeaders.push({ label: currentYear, span: yearSpan })
+          }
+          currentYear = year
+          yearSpan = 0
+        }
+
+        yearSpan++
+        const quarter = Math.floor(current.getMonth() / 3) + 1
+        periods.push({
+          date: new Date(current),
+          label: `Q${quarter}`,
+          subLabel: current.getFullYear().toString(),
+        })
+
+        current = addQuarters(current, 1)
+      }
+
+      if (yearSpan > 0) {
+        timeHeaders.push({ label: currentYear, span: yearSpan })
+      }
+    }
+
+    return { periods, timeHeaders }
+  }
+
+  const { periods, timeHeaders } = getPeriods()
 
   return (
     <div className={cn("relative h-full", className)}>
+      {/* Time header (year/month/etc) */}
+      <div className="flex h-8 border-b bg-muted/70">
+        {timeHeaders.map((header, i) => (
+          <div
+            key={i}
+            className="border-r text-xs font-semibold p-1 text-center flex items-center justify-center"
+            style={{ flex: header.span }}
+          >
+            {header.label}
+          </div>
+        ))}
+      </div>
+
+      {/* Timescale periods */}
       <div className="flex h-12 border-b bg-muted/50">
-        {Array.from({ length: days }).map((_, i) => {
-          const date = new Date(viewStart.getTime() + i * 24 * 60 * 60 * 1000)
-          const isWeekend = date.getDay() === 0 || date.getDay() === 6
+        {periods.map((period, i) => {
+          const isWeekend = timescale === "day" && (period.date.getDay() === 0 || period.date.getDay() === 6)
           return (
             <div
               key={i}
@@ -155,16 +372,25 @@ function TimelineGrid({ className }: { className?: string }) {
                 isWeekend && "bg-muted/70"
               )}
             >
-              <div className="font-medium">{date.getDate()}</div>
-              <div className="text-muted-foreground">
-                {date.toLocaleDateString("en", { weekday: "short" })}
-              </div>
+              <div className="font-medium">{period.label}</div>
+              {period.subLabel && (
+                <div className="text-muted-foreground">{period.subLabel}</div>
+              )}
             </div>
           )
         })}
       </div>
     </div>
   )
+}
+
+// Helper to get week number
+function getWeekNumber(date: Date): number {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
+  const dayNum = d.getUTCDay() || 7
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum)
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
+  return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7)
 }
 
 // Today Marker
@@ -306,10 +532,54 @@ export function GanttFeatureItem({ task }: { task: GanttTask }) {
 
 // Feature List (Container for tasks)
 export function GanttFeatureList({ className }: { className?: string }) {
-  const { tasks } = useGantt()
+  const { tasks, viewStart, viewEnd, timescale, setViewRange, setTimescale } = useGantt()
+  const containerRef = React.useRef<HTMLDivElement>(null)
+
+  // Handle scroll events for shift+scroll (horizontal pan) and ctrl+scroll (zoom)
+  React.useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+
+    const handleWheel = (e: WheelEvent) => {
+      // Shift+scroll for horizontal panning
+      if (e.shiftKey && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault()
+
+        // Calculate the shift amount based on scroll delta
+        const scrollDays = Math.round(e.deltaY / 10)
+        const shift = scrollDays * 24 * 60 * 60 * 1000
+
+        setViewRange(
+          new Date(viewStart.getTime() + shift),
+          new Date(viewEnd.getTime() + shift)
+        )
+      }
+      // Ctrl+scroll for zooming (changing timescale)
+      else if ((e.ctrlKey || e.metaKey) && !e.shiftKey) {
+        e.preventDefault()
+
+        const scales: TimescaleType[] = ["day", "week", "month", "quarter"]
+        const currentIndex = scales.indexOf(timescale)
+
+        if (e.deltaY < 0 && currentIndex > 0) {
+          // Zoom in (scroll up)
+          setTimescale(scales[currentIndex - 1])
+        } else if (e.deltaY > 0 && currentIndex < scales.length - 1) {
+          // Zoom out (scroll down)
+          setTimescale(scales[currentIndex + 1])
+        }
+      }
+    }
+
+    container.addEventListener("wheel", handleWheel, { passive: false })
+
+    return () => {
+      container.removeEventListener("wheel", handleWheel)
+    }
+  }, [viewStart, viewEnd, timescale, setViewRange, setTimescale])
 
   return (
-    <div className={cn("relative", className)}>
+    <div ref={containerRef} className={cn("relative", className)}>
       <TimelineGrid />
       <div id="gantt-timeline-container" className="relative min-h-[400px] p-4">
         <GanttToday />
