@@ -9,6 +9,7 @@ import {
   GanttCreateMarkerTrigger,
   GanttTask,
 } from "@/components/ui/gantt"
+import { TaskTable } from "@/components/ui/task-table"
 import { TaskStatus, Task } from "@/types/task"
 import { ClientSessionManager } from "@/lib/client-session-manager"
 import { ClientBaserowProvider } from "@/lib/providers/baserow/client-baserow-provider"
@@ -310,6 +311,192 @@ function GanttPageContent() {
     // You can open a modal or navigate to task details here
   }
 
+  // Handle task update from table
+  const handleTaskUpdate = async (taskId: string, updates: Partial<Task>) => {
+    // Optimistic update
+    const previousTasks = [...tasks]
+    setTasks((prev) =>
+      prev.map((task) =>
+        task.id === taskId ? { ...task, ...updates } : task
+      )
+    )
+
+    try {
+      // Prepare the update payload
+      const payload: Record<string, string | number | undefined> = {}
+
+      if (updates.name !== undefined) payload.name = updates.name
+      if (updates.startAt !== undefined) payload.startAt = updates.startAt instanceof Date ? updates.startAt.toISOString() : new Date(updates.startAt).toISOString()
+      if (updates.endAt !== undefined) payload.endAt = updates.endAt instanceof Date ? updates.endAt.toISOString() : new Date(updates.endAt).toISOString()
+      if (updates.status !== undefined) payload.statusId = updates.status.id
+      if (updates.owner !== undefined) payload.owner = updates.owner
+      if (updates.group !== undefined) payload.group = updates.group
+      if (updates.description !== undefined) payload.description = updates.description
+      if (updates.progress !== undefined) payload.progress = updates.progress
+
+      if (isClientMode && clientProvider) {
+        // Client mode: Direct API call via provider
+        const updatedTask = await clientProvider.updateTask(taskId, payload)
+
+        // Update with provider response
+        setTasks((prev) =>
+          prev.map((task) =>
+            task.id === taskId
+              ? {
+                  ...task,
+                  ...updatedTask,
+                  startAt: new Date(updatedTask.startAt),
+                  endAt: new Date(updatedTask.endAt),
+                }
+              : task
+          )
+        )
+      } else {
+        // Server mode: Fetch via API route
+        const response = await fetch(`/api/tasks/${taskId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        })
+
+        if (!response.ok) {
+          throw new Error("Failed to update task")
+        }
+
+        const result = await response.json()
+
+        if (!result.success) {
+          throw new Error(result.error || "Failed to update task")
+        }
+
+        // Update with server response
+        setTasks((prev) =>
+          prev.map((task) =>
+            task.id === taskId
+              ? {
+                  ...task,
+                  ...result.data,
+                  startAt: new Date(result.data.startAt),
+                  endAt: new Date(result.data.endAt),
+                }
+              : task
+          )
+        )
+      }
+    } catch (err) {
+      console.error("Error updating task:", err)
+      // Rollback on error
+      setTasks(previousTasks)
+      throw err
+    }
+  }
+
+  // Handle task delete
+  const handleTaskDelete = async (taskId: string) => {
+    // Optimistic update
+    const previousTasks = [...tasks]
+    setTasks((prev) => prev.filter((task) => task.id !== taskId))
+
+    try {
+      if (isClientMode && clientProvider) {
+        // Client mode: Direct API call via provider
+        await clientProvider.deleteTask(taskId)
+      } else {
+        // Server mode: Fetch via API route
+        const response = await fetch(`/api/tasks/${taskId}`, {
+          method: "DELETE",
+        })
+
+        if (!response.ok) {
+          throw new Error("Failed to delete task")
+        }
+
+        const result = await response.json()
+
+        if (!result.success) {
+          throw new Error(result.error || "Failed to delete task")
+        }
+      }
+    } catch (err) {
+      console.error("Error deleting task:", err)
+      // Rollback on error
+      setTasks(previousTasks)
+      alert("Failed to delete task. Please try again.")
+      throw err
+    }
+  }
+
+  // Handle tasks import
+  const handleTasksImport = async (importedTasks: Partial<Task>[]) => {
+    const createdTasks: GanttTask[] = []
+
+    for (const taskData of importedTasks) {
+      try {
+        // Use first status as default if not specified
+        const statusId = taskData.status?.id || (statuses.length > 0 ? statuses[0].id : undefined)
+
+        if (isClientMode && clientProvider) {
+          // Client mode: Direct API call via provider
+          const createdTask = await clientProvider.createTask({
+            name: taskData.name!,
+            startAt: taskData.startAt!,
+            endAt: taskData.endAt!,
+            statusId,
+            owner: taskData.owner,
+            group: taskData.group,
+            description: taskData.description,
+            progress: taskData.progress,
+          })
+
+          createdTasks.push({
+            ...createdTask,
+            startAt: new Date(createdTask.startAt),
+            endAt: new Date(createdTask.endAt),
+          })
+        } else {
+          // Server mode: Fetch via API route
+          const response = await fetch("/api/tasks", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name: taskData.name,
+              startAt: taskData.startAt instanceof Date ? taskData.startAt.toISOString() : new Date(taskData.startAt!).toISOString(),
+              endAt: taskData.endAt instanceof Date ? taskData.endAt.toISOString() : new Date(taskData.endAt!).toISOString(),
+              statusId,
+              owner: taskData.owner,
+              group: taskData.group,
+              description: taskData.description,
+              progress: taskData.progress,
+            }),
+          })
+
+          if (!response.ok) {
+            throw new Error("Failed to create task")
+          }
+
+          const result = await response.json()
+
+          if (!result.success) {
+            throw new Error(result.error || "Failed to create task")
+          }
+
+          createdTasks.push({
+            ...result.data,
+            startAt: new Date(result.data.startAt),
+            endAt: new Date(result.data.endAt),
+          })
+        }
+      } catch (err) {
+        console.error("Error creating task:", taskData.name, err)
+      }
+    }
+
+    // Add all created tasks to the list
+    if (createdTasks.length > 0) {
+      setTasks((prev) => [...prev, ...createdTasks])
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -420,9 +607,23 @@ function GanttPageContent() {
               <GanttCreateMarkerTrigger />
             </div>
           ) : (
-            <div className="border rounded-lg overflow-hidden shadow-lg">
-              <GanttHeader />
-              <GanttFeatureList />
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+              {/* Task Table */}
+              <div className="lg:col-span-5 border rounded-lg overflow-hidden shadow-lg">
+                <TaskTable
+                  tasks={tasks}
+                  statuses={statuses}
+                  onTaskUpdate={handleTaskUpdate}
+                  onTaskDelete={handleTaskDelete}
+                  onTasksImport={handleTasksImport}
+                />
+              </div>
+
+              {/* Gantt Chart */}
+              <div className="lg:col-span-7 border rounded-lg overflow-hidden shadow-lg">
+                <GanttHeader />
+                <GanttFeatureList />
+              </div>
             </div>
           )}
 
