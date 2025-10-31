@@ -616,6 +616,13 @@ export function GanttFeatureList({ className }: { className?: string }) {
     if (!container) return
 
     const handleWheel = (e: WheelEvent) => {
+      // Only handle wheel events with modifiers (shift or ctrl/cmd)
+      // Let normal scrolling work naturally for better performance
+      const hasModifiers = e.shiftKey || e.ctrlKey || e.metaKey
+      if (!hasModifiers) {
+        return // Allow default scroll behavior
+      }
+
       // Shift+scroll for horizontal panning
       if (e.shiftKey && !e.ctrlKey && !e.metaKey) {
         e.preventDefault()
@@ -653,9 +660,13 @@ export function GanttFeatureList({ className }: { className?: string }) {
     }
   }, [viewStart, viewEnd, timescale, setViewRange, setTimescale])
 
+  // Calculate minimum width for timeline to ensure proper scrolling
+  const totalDays = (viewEnd.getTime() - viewStart.getTime()) / (24 * 60 * 60 * 1000)
+  const minWidthPx = Math.max(1200, totalDays * 40) // Minimum 40px per day, at least 1200px
+
   return (
     <div ref={containerRef} className={cn("relative overflow-x-auto", className)}>
-      <div className="min-w-full">
+      <div style={{ minWidth: `${minWidthPx}px` }}>
         <TimelineGrid />
         <div id="gantt-timeline-container" className="relative min-h-[400px] p-4">
           <GanttToday />
