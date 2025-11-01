@@ -118,44 +118,6 @@ export function GanttProvider({
     setViewEnd(end)
   }, [])
 
-  // Adjust view range when timescale changes to align with period boundaries
-  React.useEffect(() => {
-    const now = new Date()
-    let newStart: Date
-    let newEnd: Date
-
-    switch (timescale) {
-      case "day":
-        // Show 30 days before and 60 days after today
-        newStart = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
-        newEnd = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000)
-        break
-      case "week":
-        // Show 12 weeks before and 24 weeks after today, aligned to week start
-        const weekStart = getStartOfWeek(now)
-        newStart = addWeeks(weekStart, -12)
-        newEnd = addWeeks(weekStart, 24)
-        break
-      case "month":
-        // Show 6 months before and 12 months after today, aligned to month start
-        const monthStart = getStartOfMonth(now)
-        newStart = addMonths(monthStart, -6)
-        newEnd = addMonths(monthStart, 12)
-        break
-      case "quarter":
-        // Show 4 quarters before and 8 quarters after today, aligned to quarter start
-        const quarterStart = getStartOfQuarter(now)
-        newStart = addQuarters(quarterStart, -4)
-        newEnd = addQuarters(quarterStart, 8)
-        break
-      default:
-        return
-    }
-
-    setViewStart(newStart)
-    setViewEnd(newEnd)
-  }, [timescale])
-
   return (
     <GanttContext.Provider
       value={{
@@ -607,7 +569,7 @@ export function GanttFeatureItem({ task }: { task: GanttTask }) {
 
 // Feature List (Container for tasks)
 export function GanttFeatureList({ className }: { className?: string }) {
-  const { tasks, viewStart, viewEnd, timescale, setViewRange, setTimescale } = useGantt()
+  const { tasks, viewStart, viewEnd, timescale, setTimescale } = useGantt()
   const containerRef = React.useRef<HTMLDivElement>(null)
 
   // Handle scroll events for shift+scroll (horizontal pan) and ctrl+scroll (zoom)
@@ -623,18 +585,11 @@ export function GanttFeatureList({ className }: { className?: string }) {
         return // Allow default scroll behavior
       }
 
-      // Shift+scroll for horizontal panning
+      // Shift+scroll for horizontal scrolling
       if (e.shiftKey && !e.ctrlKey && !e.metaKey) {
         e.preventDefault()
-
-        // Calculate the shift amount based on scroll delta
-        const scrollDays = Math.round(e.deltaY / 10)
-        const shift = scrollDays * 24 * 60 * 60 * 1000
-
-        setViewRange(
-          new Date(viewStart.getTime() + shift),
-          new Date(viewEnd.getTime() + shift)
-        )
+        // Scroll the container horizontally instead of changing the date range
+        container.scrollLeft += e.deltaY
       }
       // Ctrl+scroll for zooming (changing timescale)
       else if ((e.ctrlKey || e.metaKey) && !e.shiftKey) {
@@ -658,7 +613,7 @@ export function GanttFeatureList({ className }: { className?: string }) {
     return () => {
       container.removeEventListener("wheel", handleWheel)
     }
-  }, [viewStart, viewEnd, timescale, setViewRange, setTimescale])
+  }, [timescale, setTimescale])
 
   // Calculate minimum width for timeline to ensure proper scrolling
   const totalDays = (viewEnd.getTime() - viewStart.getTime()) / (24 * 60 * 60 * 1000)
