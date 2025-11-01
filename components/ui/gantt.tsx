@@ -569,7 +569,7 @@ export function GanttFeatureItem({ task }: { task: GanttTask }) {
 
 // Feature List (Container for tasks)
 export function GanttFeatureList({ className }: { className?: string }) {
-  const { tasks, viewStart, viewEnd, timescale, setViewRange, setTimescale } = useGantt()
+  const { tasks, viewStart, viewEnd, timescale, setTimescale } = useGantt()
   const containerRef = React.useRef<HTMLDivElement>(null)
 
   // Handle scroll events for shift+scroll (horizontal pan) and ctrl+scroll (zoom)
@@ -585,18 +585,11 @@ export function GanttFeatureList({ className }: { className?: string }) {
         return // Allow default scroll behavior
       }
 
-      // Shift+scroll for horizontal panning
+      // Shift+scroll for horizontal scrolling
       if (e.shiftKey && !e.ctrlKey && !e.metaKey) {
         e.preventDefault()
-
-        // Calculate the shift amount based on scroll delta
-        const scrollDays = Math.round(e.deltaY / 10)
-        const shift = scrollDays * 24 * 60 * 60 * 1000
-
-        setViewRange(
-          new Date(viewStart.getTime() + shift),
-          new Date(viewEnd.getTime() + shift)
-        )
+        // Scroll the container horizontally instead of changing the date range
+        container.scrollLeft += e.deltaY
       }
       // Ctrl+scroll for zooming (changing timescale)
       else if ((e.ctrlKey || e.metaKey) && !e.shiftKey) {
@@ -620,7 +613,7 @@ export function GanttFeatureList({ className }: { className?: string }) {
     return () => {
       container.removeEventListener("wheel", handleWheel)
     }
-  }, [viewStart, viewEnd, timescale, setViewRange, setTimescale])
+  }, [timescale, setTimescale])
 
   // Calculate minimum width for timeline to ensure proper scrolling
   const totalDays = (viewEnd.getTime() - viewStart.getTime()) / (24 * 60 * 60 * 1000)
