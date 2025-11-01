@@ -118,44 +118,6 @@ export function GanttProvider({
     setViewEnd(end)
   }, [])
 
-  // Adjust view range when timescale changes to align with period boundaries
-  React.useEffect(() => {
-    const now = new Date()
-    let newStart: Date
-    let newEnd: Date
-
-    switch (timescale) {
-      case "day":
-        // Show 30 days before and 60 days after today
-        newStart = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
-        newEnd = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000)
-        break
-      case "week":
-        // Show 12 weeks before and 24 weeks after today, aligned to week start
-        const weekStart = getStartOfWeek(now)
-        newStart = addWeeks(weekStart, -12)
-        newEnd = addWeeks(weekStart, 24)
-        break
-      case "month":
-        // Show 6 months before and 12 months after today, aligned to month start
-        const monthStart = getStartOfMonth(now)
-        newStart = addMonths(monthStart, -6)
-        newEnd = addMonths(monthStart, 12)
-        break
-      case "quarter":
-        // Show 4 quarters before and 8 quarters after today, aligned to quarter start
-        const quarterStart = getStartOfQuarter(now)
-        newStart = addQuarters(quarterStart, -4)
-        newEnd = addQuarters(quarterStart, 8)
-        break
-      default:
-        return
-    }
-
-    setViewStart(newStart)
-    setViewEnd(newEnd)
-  }, [timescale])
-
   return (
     <GanttContext.Provider
       value={{
