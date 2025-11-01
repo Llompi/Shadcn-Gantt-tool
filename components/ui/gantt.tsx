@@ -118,6 +118,48 @@ export function GanttProvider({
     setViewEnd(end)
   }, [])
 
+  // Adjust view range when timescale changes to preserve current viewport
+  React.useEffect(() => {
+    // Calculate the center of the current viewport
+    const viewportCenter = new Date((viewStart.getTime() + viewEnd.getTime()) / 2)
+
+    let newStart: Date
+    let newEnd: Date
+
+    switch (timescale) {
+      case "day":
+        // Show 30 days before and 60 days after viewport center
+        newStart = new Date(viewportCenter.getTime() - 30 * 24 * 60 * 60 * 1000)
+        newEnd = new Date(viewportCenter.getTime() + 60 * 24 * 60 * 60 * 1000)
+        break
+      case "week":
+        // Show 12 weeks before and 24 weeks after viewport center, aligned to week start
+        const weekStart = getStartOfWeek(viewportCenter)
+        newStart = addWeeks(weekStart, -12)
+        newEnd = addWeeks(weekStart, 24)
+        break
+      case "month":
+        // Show 6 months before and 12 months after viewport center, aligned to month start
+        const monthStart = getStartOfMonth(viewportCenter)
+        newStart = addMonths(monthStart, -6)
+        newEnd = addMonths(monthStart, 12)
+        break
+      case "quarter":
+        // Show 4 quarters before and 8 quarters after viewport center, aligned to quarter start
+        const quarterStart = getStartOfQuarter(viewportCenter)
+        newStart = addQuarters(quarterStart, -4)
+        newEnd = addQuarters(quarterStart, 8)
+        break
+      default:
+        return
+    }
+
+    setViewStart(newStart)
+    setViewEnd(newEnd)
+    // Only run when timescale changes, not when viewStart/viewEnd change (would cause infinite loop)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timescale])
+
   return (
     <GanttContext.Provider
       value={{

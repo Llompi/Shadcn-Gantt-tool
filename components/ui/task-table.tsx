@@ -625,8 +625,8 @@ export function TaskTable({
           </thead>
           <tbody>
             {tasks.map((task) => (
-              <tr key={task.id} className="border-b hover:bg-muted/50">
-                <td className="px-2 py-1.5">
+              <tr key={task.id} className="border-b hover:bg-muted/50 h-12">
+                <td className="px-2 py-1.5 align-middle">
                   {editingCell?.taskId === task.id && editingCell.field === "name" ? (
                     <input
                       type="text"
@@ -651,7 +651,7 @@ export function TaskTable({
                     </div>
                   )}
                 </td>
-                <td className="px-2 py-1.5">
+                <td className="px-2 py-1.5 align-middle">
                   {editingCell?.taskId === task.id && editingCell.field === "startAt" ? (
                     <input
                       type="date"
@@ -676,7 +676,7 @@ export function TaskTable({
                     </div>
                   )}
                 </td>
-                <td className="px-2 py-1.5">
+                <td className="px-2 py-1.5 align-middle">
                   {editingCell?.taskId === task.id && editingCell.field === "endAt" ? (
                     <input
                       type="date"
@@ -701,7 +701,7 @@ export function TaskTable({
                     </div>
                   )}
                 </td>
-                <td className="px-2 py-1.5">
+                <td className="px-2 py-1.5 align-middle">
                   {editingCell?.taskId === task.id && editingCell.field === "status" ? (
                     <select
                       defaultValue={task.status?.id}
@@ -744,7 +744,7 @@ export function TaskTable({
                     </div>
                   )}
                 </td>
-                <td className="px-2 py-1.5">
+                <td className="px-2 py-1.5 align-middle">
                   {editingCell?.taskId === task.id && editingCell.field === "owner" ? (
                     <input
                       type="text"
@@ -769,7 +769,7 @@ export function TaskTable({
                     </div>
                   )}
                 </td>
-                <td className="px-2 py-1.5">
+                <td className="px-2 py-1.5 align-middle">
                   {editingCell?.taskId === task.id && editingCell.field === "group" ? (
                     <input
                       type="text"
@@ -794,7 +794,7 @@ export function TaskTable({
                     </div>
                   )}
                 </td>
-                <td className="px-2 py-1.5">
+                <td className="px-2 py-1.5 align-middle">
                   {editingCell?.taskId === task.id && editingCell.field === "progress" ? (
                     <input
                       type="number"
@@ -822,7 +822,7 @@ export function TaskTable({
                   )}
                 </td>
                 {onTaskDelete && (
-                  <td className="px-2 py-1.5">
+                  <td className="px-2 py-1.5 align-middle">
                     <button
                       onClick={() => handleDelete(task.id)}
                       className="p-1 hover:bg-red-100 hover:text-red-600 rounded transition-colors"
