@@ -189,9 +189,24 @@ export function GanttHeader({ className }: { className?: string }) {
   }
 
   const resetView = () => {
+    // Calculate center point for smooth transition
+    const today = Date.now()
+    const rangeMs = 90 * 24 * 60 * 60 * 1000 // 90 days total range
     setViewRange(
-      new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-      new Date(Date.now() + 60 * 24 * 60 * 60 * 1000)
+      new Date(today - 30 * 24 * 60 * 60 * 1000),
+      new Date(today + 60 * 24 * 60 * 60 * 1000)
+    )
+  }
+
+  const goToToday = () => {
+    const today = Date.now()
+    const currentRange = viewEnd.getTime() - viewStart.getTime()
+    const halfRange = currentRange / 2
+
+    // Center today in the viewport
+    setViewRange(
+      new Date(today - halfRange),
+      new Date(today + halfRange)
     )
   }
 
@@ -207,7 +222,7 @@ export function GanttHeader({ className }: { className?: string }) {
             <ChevronLeft className="h-4 w-4" />
           </button>
           <button
-            onClick={resetView}
+            onClick={goToToday}
             className="px-3 py-1 text-sm hover:bg-accent rounded-md transition-colors"
           >
             Today
@@ -839,6 +854,10 @@ export function GanttFeatureList({ className }: { className?: string }) {
     }
   }, [isPanning, isSpacePressed, startMomentumScroll])
 
+  // Track zoom accumulation for smooth zooming
+  const zoomAccumulatorRef = React.useRef(0)
+  const zoomTimeoutRef = React.useRef<NodeJS.Timeout | null>(null)
+
   // Handle scroll events for shift+scroll (horizontal pan) and ctrl+scroll (zoom)
   React.useEffect(() => {
     const container = containerRef.current
@@ -848,22 +867,44 @@ export function GanttFeatureList({ className }: { className?: string }) {
       // Shift+scroll for horizontal scrolling (smooth)
       if (e.shiftKey && !e.ctrlKey && !e.metaKey) {
         e.preventDefault()
-        container.scrollLeft += e.deltaY
-        scrollVelocityRef.current = { x: e.deltaY * 0.3, y: 0 }
+        // Directly scroll horizontally
+        const scrollAmount = e.deltaY || e.deltaX
+        container.scrollLeft += scrollAmount
+        scrollVelocityRef.current = { x: scrollAmount * 0.3, y: 0 }
         startMomentumScroll()
       }
-      // Ctrl+scroll for zooming (changing timescale) - smooth zoom
+      // Ctrl+scroll for zooming (changing timescale) - smooth zoom with accumulation
       else if ((e.ctrlKey || e.metaKey) && !e.shiftKey) {
         e.preventDefault()
 
-        const scales: TimescaleType[] = ["day", "week", "month", "quarter"]
-        const currentIndex = scales.indexOf(timescale)
+        // Accumulate zoom delta for smoother feel
+        zoomAccumulatorRef.current += e.deltaY
 
-        if (e.deltaY < 0 && currentIndex > 0) {
-          setTimescale(scales[currentIndex - 1])
-        } else if (e.deltaY > 0 && currentIndex < scales.length - 1) {
-          setTimescale(scales[currentIndex + 1])
+        // Clear existing timeout
+        if (zoomTimeoutRef.current) {
+          clearTimeout(zoomTimeoutRef.current)
         }
+
+        // Threshold for triggering zoom change (makes it less sensitive)
+        const threshold = 100
+
+        if (Math.abs(zoomAccumulatorRef.current) >= threshold) {
+          const scales: TimescaleType[] = ["day", "week", "month", "quarter"]
+          const currentIndex = scales.indexOf(timescale)
+
+          if (zoomAccumulatorRef.current < 0 && currentIndex > 0) {
+            setTimescale(scales[currentIndex - 1])
+            zoomAccumulatorRef.current = 0
+          } else if (zoomAccumulatorRef.current > 0 && currentIndex < scales.length - 1) {
+            setTimescale(scales[currentIndex + 1])
+            zoomAccumulatorRef.current = 0
+          }
+        }
+
+        // Reset accumulator after brief pause
+        zoomTimeoutRef.current = setTimeout(() => {
+          zoomAccumulatorRef.current = 0
+        }, 200)
       }
       // Regular scroll - add momentum
       else if (!e.shiftKey && !e.ctrlKey && !e.metaKey) {
@@ -883,6 +924,9 @@ export function GanttFeatureList({ className }: { className?: string }) {
       container.removeEventListener("wheel", handleWheel)
       if (momentumFrameRef.current) {
         cancelAnimationFrame(momentumFrameRef.current)
+      }
+      if (zoomTimeoutRef.current) {
+        clearTimeout(zoomTimeoutRef.current)
       }
     }
   }, [timescale, setTimescale, startMomentumScroll])
