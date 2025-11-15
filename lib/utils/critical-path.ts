@@ -70,7 +70,7 @@ export function calculateCriticalPath(
 
 function forwardPass(
   taskMap: Map<string, TaskNode>,
-  dependencies: TaskDependency[]
+  _dependencies: TaskDependency[]
 ): void {
   // Topological sort to process tasks in dependency order
   const visited = new Set<string>()
@@ -156,7 +156,7 @@ function forwardPass(
 
 function backwardPass(
   taskMap: Map<string, TaskNode>,
-  dependencies: TaskDependency[]
+  _dependencies: TaskDependency[]
 ): void {
   // Find project end date (maximum earliest finish)
   let projectEnd = new Date(0)

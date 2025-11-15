@@ -246,7 +246,7 @@ export const useGanttUIStore = create<GanttUIState>()(
       },
 
       clearDateRangeFilter: () => {
-        const { dateRange, ...rest } = get().filter
+        const { dateRange: _dateRange, ...rest } = get().filter
         set({ filter: rest })
       },
 

@@ -17,12 +17,12 @@ import {
   Users,
   GitBranch,
   Eye,
-  EyeOff,
   Grid,
   List,
 } from 'lucide-react'
 import { useGanttUIStore } from '@/lib/stores/gantt-ui-store'
 import { useVersionControlStore } from '@/lib/stores/version-control-store'
+import { GanttViewConfig } from '@/types/task'
 
 interface GanttToolbarProps {
   onSearch?: (query: string) => void
@@ -305,13 +305,14 @@ export function GanttToolbar({
               </h4>
               <select
                 value={viewConfig.groupBy || 'none'}
-                onChange={(e) =>
+                onChange={(e) => {
+                  const value = e.target.value
                   useGanttUIStore.getState().setGroupBy(
-                    e.target.value === 'none'
+                    value === 'none'
                       ? undefined
-                      : (e.target.value as any)
+                      : (value as GanttViewConfig['groupBy'])
                   )
-                }
+                }}
                 className="w-full px-3 py-2 rounded-lg bg-background border border-border text-sm"
               >
                 <option value="none">None</option>
@@ -330,9 +331,10 @@ export function GanttToolbar({
               </h4>
               <select
                 value={viewConfig.colorBy || 'status'}
-                onChange={(e) =>
-                  useGanttUIStore.getState().setColorBy(e.target.value as any)
-                }
+                onChange={(e) => {
+                  const value = e.target.value as GanttViewConfig['colorBy']
+                  useGanttUIStore.getState().setColorBy(value)
+                }}
                 className="w-full px-3 py-2 rounded-lg bg-background border border-border text-sm"
               >
                 <option value="status">Status</option>

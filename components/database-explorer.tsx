@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import {
   Database,
   Table,
@@ -11,14 +11,22 @@ import {
   ChevronDown,
   Search,
   RefreshCw,
-  CheckCircle2,
 } from 'lucide-react'
-import { DatabaseSchema, DatabaseTable, DatabaseColumn, DataPreview } from '@/types/task'
+import { DatabaseSchema, DataPreview } from '@/types/task'
+
+interface ConnectionConfig {
+  type: 'postgres' | 'mysql' | 'mongodb'
+  host: string
+  port: number
+  database: string
+  username: string
+  password: string
+}
 
 interface DatabaseExplorerProps {
-  onConnect?: (config: any) => void
+  onConnect?: (config: ConnectionConfig) => void
   onTableSelect?: (tableName: string) => void
-  onFieldMap?: (mapping: any) => void
+  onFieldMap?: (mapping: string) => void
 }
 
 export function DatabaseExplorer({

@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { Task, TaskChange, ChangeSet } from '@/types/task'
+import { TaskChange, ChangeSet } from '@/types/task'
 import { v4 as uuidv4 } from 'uuid'
 
 interface VersionControlState {
@@ -17,7 +17,7 @@ interface VersionControlState {
   maxHistorySize: number
 
   // Actions
-  recordChange: (taskId: string, changeType: 'create' | 'update' | 'delete', field?: string, oldValue?: any, newValue?: any) => void
+  recordChange: (taskId: string, changeType: 'create' | 'update' | 'delete', field?: string, oldValue?: unknown, newValue?: unknown) => void
   recordBatchChanges: (changes: Omit<TaskChange, 'id' | 'timestamp'>[]) => void
   undo: () => ChangeSet | null
   redo: () => ChangeSet | null

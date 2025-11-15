@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useRef, useEffect, useState } from 'react'
+import React, { useRef, useEffect, useState, useCallback } from 'react'
 import { Task } from '@/types/task'
 import { X } from 'lucide-react'
 
@@ -21,7 +21,7 @@ export function GanttMinimap({
 }: GanttMinimapProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [isDragging, setIsDragging] = useState(false)
-  const [dimensions, setDimensions] = useState({ width: 300, height: 150 })
+  const [dimensions] = useState({ width: 300, height: 150 })
 
   // Calculate the full date range of all tasks
   const getDateRange = () => {
@@ -47,11 +47,7 @@ export function GanttMinimap({
 
   const dateRange = getDateRange()
 
-  useEffect(() => {
-    drawMinimap()
-  }, [tasks, viewportStart, viewportEnd, dimensions])
-
-  const drawMinimap = () => {
+  const drawMinimap = useCallback(() => {
     const canvas = canvasRef.current
     if (!canvas) return
 
@@ -118,7 +114,11 @@ export function GanttMinimap({
 
     ctx.fillRect(viewportStartX - handleWidth / 2, handleY, handleWidth, handleHeight)
     ctx.fillRect(viewportEndX - handleWidth / 2, handleY, handleWidth, handleHeight)
-  }
+  }, [tasks, viewportStart, viewportEnd, dimensions, dateRange])
+
+  useEffect(() => {
+    drawMinimap()
+  }, [drawMinimap])
 
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     setIsDragging(true)

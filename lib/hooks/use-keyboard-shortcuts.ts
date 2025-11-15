@@ -168,7 +168,7 @@ export function useKeyboardShortcuts(options: UseKeyboardShortcutsOptions = {}) 
 
   useHotkeys(
     'enter',
-    (e) => {
+    () => {
       options.onEditTask?.()
     },
     { enabled }
@@ -241,7 +241,7 @@ export function useKeyboardShortcuts(options: UseKeyboardShortcutsOptions = {}) 
   // Escape
   useHotkeys(
     'escape',
-    (e) => {
+    () => {
       options.onEscape?.()
     },
     { enabled }

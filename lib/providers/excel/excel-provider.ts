@@ -25,7 +25,7 @@ export class ExcelProvider implements IDataProvider {
   private tasks: Map<string, Task> = new Map()
   private statuses: Map<string, TaskStatus> = new Map()
   private workbook: XLSX.WorkBook | null = null
-  private fileWatcher: any = null
+  private fileWatcher: unknown = null
   private lastModified: number = 0
 
   constructor(config: ExcelConfig) {
@@ -57,14 +57,14 @@ export class ExcelProvider implements IDataProvider {
       // Load statuses
       if (this.workbook.SheetNames.includes(this.config.statusesSheet!)) {
         const statusSheet = this.workbook.Sheets[this.config.statusesSheet!]
-        const statusData = XLSX.utils.sheet_to_json(statusSheet) as any[]
+        const statusData = XLSX.utils.sheet_to_json(statusSheet) as Record<string, unknown>[]
 
         this.statuses.clear()
         statusData.forEach((row) => {
           const status: TaskStatus = {
-            id: row.id || row.ID || `status_${row.name}`,
-            name: row.name || row.Name,
-            color: row.color || row.Color,
+            id: (row.id || row.ID || `status_${row.name}`) as string,
+            name: (row.name || row.Name) as string,
+            color: (row.color || row.Color) as string | undefined,
           }
           this.statuses.set(status.id, status)
         })
@@ -76,7 +76,7 @@ export class ExcelProvider implements IDataProvider {
       // Load tasks
       if (this.workbook.SheetNames.includes(this.config.tasksSheet!)) {
         const taskSheet = this.workbook.Sheets[this.config.tasksSheet!]
-        const taskData = XLSX.utils.sheet_to_json(taskSheet) as any[]
+        const taskData = XLSX.utils.sheet_to_json(taskSheet) as Record<string, unknown>[]
 
         this.tasks.clear()
         taskData.forEach((row) => {
@@ -90,8 +90,8 @@ export class ExcelProvider implements IDataProvider {
       // Get file stats
       const stats = await fs.stat(this.config.filePath)
       this.lastModified = stats.mtimeMs
-    } catch (error: any) {
-      if (error.code === 'ENOENT') {
+    } catch (error: unknown) {
+      if (error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT') {
         // File doesn't exist, create it
         await this.createNewFile()
       } else {
@@ -363,8 +363,8 @@ export class ExcelProvider implements IDataProvider {
   }
 
   async close(): Promise<void> {
-    if (this.fileWatcher) {
-      this.fileWatcher.close()
+    if (this.fileWatcher && typeof this.fileWatcher === 'object' && 'close' in this.fileWatcher) {
+      (this.fileWatcher as { close: () => void }).close()
       this.fileWatcher = null
     }
   }
@@ -384,10 +384,10 @@ export class ExcelProvider implements IDataProvider {
     }
   }
 
-  private mapRowToTask(row: any): Task | null {
+  private mapRowToTask(row: Record<string, unknown>): Task | null {
     try {
-      const id = row.id || row.ID
-      const name = row.name || row.Name
+      const id = (row.id || row.ID) as string | undefined
+      const name = (row.name || row.Name) as string | undefined
       const startAt = this.parseDate(row.startAt || row.StartAt || row.start_at)
       const endAt = this.parseDate(row.endAt || row.EndAt || row.end_at)
 
@@ -395,10 +395,11 @@ export class ExcelProvider implements IDataProvider {
         return null
       }
 
-      const statusId = row.statusId || row.StatusId || row.status_id
+      const statusId = (row.statusId || row.StatusId || row.status_id) as string | undefined
       const status = statusId ? this.statuses.get(statusId) : undefined
 
-      const tags = row.tags ? row.tags.split(',').map((t: string) => t.trim()) : []
+      const tagsValue = (row.tags as string | undefined)
+      const tags = tagsValue ? tagsValue.split(',').map((t: string) => t.trim()) : []
 
       return {
         id,
@@ -406,11 +407,11 @@ export class ExcelProvider implements IDataProvider {
         startAt,
         endAt,
         status,
-        group: row.group || row.Group || undefined,
-        owner: row.owner || row.Owner || undefined,
-        description: row.description || row.Description || undefined,
+        group: (row.group || row.Group) as string | undefined,
+        owner: (row.owner || row.Owner) as string | undefined,
+        description: (row.description || row.Description) as string | undefined,
         progress: Number(row.progress || row.Progress || 0),
-        priority: row.priority || row.Priority || undefined,
+        priority: (row.priority || row.Priority) as Task['priority'],
         tags: tags.length > 0 ? tags : undefined,
         estimatedHours: row.estimatedHours
           ? Number(row.estimatedHours)
@@ -425,10 +426,10 @@ export class ExcelProvider implements IDataProvider {
     }
   }
 
-  private parseDate(value: any): Date | undefined {
+  private parseDate(value: unknown): Date | undefined {
     if (!value) return undefined
     if (value instanceof Date) return value
-    const date = new Date(value)
+    const date = new Date(value as string | number | Date)
     return isNaN(date.getTime()) ? undefined : date
   }
 

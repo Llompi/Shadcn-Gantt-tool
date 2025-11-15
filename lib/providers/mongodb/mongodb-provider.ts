@@ -1,5 +1,5 @@
 import 'server-only'
-import { MongoClient, Db, ObjectId } from 'mongodb'
+import { MongoClient, Db, Document } from 'mongodb'
 import { IDataProvider } from '../data-provider.interface'
 import type {
   Task,
@@ -58,7 +58,7 @@ export class MongoDBProvider implements IDataProvider {
     const skip = (page - 1) * pageSize
 
     // Build filter
-    const filter: any = {}
+    const filter: Document = {}
 
     if (params?.startDate) {
       filter.startAt = { $gte: params.startDate }
@@ -150,7 +150,7 @@ export class MongoDBProvider implements IDataProvider {
       updatedAt: now,
     }
 
-    await collection.insertOne(document as any)
+    await collection.insertOne(document as Document)
 
     const task = await this.getTaskById(id)
     if (!task) {
@@ -265,7 +265,7 @@ export class MongoDBProvider implements IDataProvider {
     }
   }
 
-  private mapDocumentToTask(doc: any): Task {
+  private mapDocumentToTask(doc: Document): Task {
     return {
       id: doc.id,
       name: doc.name,

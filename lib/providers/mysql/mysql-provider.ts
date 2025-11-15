@@ -63,7 +63,7 @@ export class MySQLProvider implements IDataProvider {
       LEFT JOIN task_statuses s ON t.status_id = s.id
       WHERE 1=1
     `
-    const queryParams: any[] = []
+    const queryParams: unknown[] = []
 
     // Add filters
     if (params?.startDate) {
@@ -98,7 +98,8 @@ export class MySQLProvider implements IDataProvider {
       'SELECT COUNT(*) as total'
     )
     const [countRows] = await pool.execute(countQuery, queryParams)
-    const total = (countRows as any)[0].total
+    const totalRow = (countRows as unknown[])[0] as { total: number }
+    const total = totalRow.total
 
     // Add pagination
     query += ' ORDER BY t.start_at ASC LIMIT ? OFFSET ?'
@@ -106,7 +107,7 @@ export class MySQLProvider implements IDataProvider {
 
     const [rows] = await pool.execute(query, queryParams)
 
-    const tasks = (rows as any[]).map((row) => this.mapRowToTask(row))
+    const tasks = (rows as unknown[]).map((row) => this.mapRowToTask(row as Record<string, unknown>))
 
     return {
       data: tasks,
@@ -130,7 +131,7 @@ export class MySQLProvider implements IDataProvider {
       ORDER BY t.start_at ASC
     `)
 
-    return (rows as any[]).map((row) => this.mapRowToTask(row))
+    return (rows as unknown[]).map((row) => this.mapRowToTask(row as Record<string, unknown>))
   }
 
   async getTaskById(id: string): Promise<Task | null> {
@@ -190,7 +191,7 @@ export class MySQLProvider implements IDataProvider {
   async updateTask(id: string, data: UpdateTaskDTO): Promise<Task> {
     const pool = await this.getPool()
     const updates: string[] = []
-    const params: any[] = []
+    const params: unknown[] = []
 
     if (data.name !== undefined) {
       updates.push('name = ?')
@@ -259,25 +260,30 @@ export class MySQLProvider implements IDataProvider {
     const pool = await this.getPool()
     const [rows] = await pool.execute('SELECT * FROM task_statuses ORDER BY name')
 
-    return (rows as any[]).map((row) => ({
-      id: row.id,
-      name: row.name,
-      color: row.color,
-    }))
+    return (rows as unknown[]).map((row) => {
+      const r = row as Record<string, unknown>
+      return {
+        id: r.id as string,
+        name: r.name as string,
+        color: r.color as string | undefined,
+      }
+    })
   }
 
   async getStatusById(id: string): Promise<TaskStatus | null> {
     const pool = await this.getPool()
     const [rows] = await pool.execute('SELECT * FROM task_statuses WHERE id = ?', [id])
 
-    const results = rows as any[]
-    return results.length > 0
-      ? {
-          id: results[0].id,
-          name: results[0].name,
-          color: results[0].color,
-        }
-      : null
+    const results = rows as unknown[]
+    if (results.length > 0) {
+      const r = results[0] as Record<string, unknown>
+      return {
+        id: r.id as string,
+        name: r.name as string,
+        color: r.color as string | undefined,
+      }
+    }
+    return null
   }
 
   async isHealthy(): Promise<boolean> {
@@ -298,25 +304,25 @@ export class MySQLProvider implements IDataProvider {
     }
   }
 
-  private mapRowToTask(row: any): Task {
+  private mapRowToTask(row: Record<string, unknown>): Task {
     return {
-      id: row.id,
-      name: row.name,
-      startAt: new Date(row.start_at),
-      endAt: new Date(row.end_at),
+      id: row.id as string,
+      name: row.name as string,
+      startAt: new Date(row.start_at as string | number | Date),
+      endAt: new Date(row.end_at as string | number | Date),
       status: row.status_id
         ? {
-            id: row.status_id,
-            name: row.status_name,
-            color: row.status_color,
+            id: row.status_id as string,
+            name: row.status_name as string,
+            color: row.status_color as string | undefined,
           }
         : undefined,
-      group: row.group_name || undefined,
-      owner: row.owner || undefined,
-      description: row.description || undefined,
-      progress: row.progress || 0,
-      createdAt: row.created_at ? new Date(row.created_at) : undefined,
-      updatedAt: row.updated_at ? new Date(row.updated_at) : undefined,
+      group: (row.group_name as string | undefined) || undefined,
+      owner: (row.owner as string | undefined) || undefined,
+      description: (row.description as string | undefined) || undefined,
+      progress: (row.progress as number) || 0,
+      createdAt: row.created_at ? new Date(row.created_at as string | number | Date) : undefined,
+      updatedAt: row.updated_at ? new Date(row.updated_at as string | number | Date) : undefined,
     }
   }
 
