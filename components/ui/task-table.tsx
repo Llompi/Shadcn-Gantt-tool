@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useRef } from "react"
+import React, { useState, useRef } from "react"
 import { Task, TaskStatus } from "@/types/task"
-import { Download, Upload, Trash2 } from "lucide-react"
+import { Download, Upload, Trash2, GripVertical } from "lucide-react"
 import * as XLSX from "xlsx"
 
 export type TimescaleType = "day" | "week" | "month" | "quarter"
@@ -30,6 +30,58 @@ export function TaskTable({
 }: TaskTableProps) {
   const [editingCell, setEditingCell] = useState<{ taskId: string; field: string } | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Column width state
+  const [columnWidths, setColumnWidths] = useState({
+    name: 250,
+    start: 120,
+    end: 120,
+    status: 140,
+    owner: 150,
+    group: 150,
+    progress: 100,
+  })
+
+  // Column resizing state
+  const [resizingColumn, setResizingColumn] = useState<string | null>(null)
+  const [resizeStart, setResizeStart] = useState({ x: 0, width: 0 })
+
+  // Handle column resize start
+  const handleResizeStart = (e: React.MouseEvent, column: string) => {
+    e.preventDefault()
+    setResizingColumn(column)
+    setResizeStart({
+      x: e.clientX,
+      width: columnWidths[column as keyof typeof columnWidths],
+    })
+  }
+
+  // Handle column resize
+  React.useEffect(() => {
+    if (!resizingColumn) return
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const deltaX = e.clientX - resizeStart.x
+      const newWidth = Math.max(80, resizeStart.width + deltaX)
+
+      setColumnWidths(prev => ({
+        ...prev,
+        [resizingColumn]: newWidth,
+      }))
+    }
+
+    const handleMouseUp = () => {
+      setResizingColumn(null)
+    }
+
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [resizingColumn, resizeStart])
 
   const formatDate = (date: Date | undefined): string => {
     if (!date) return ""
@@ -611,13 +663,83 @@ export function TaskTable({
         <table className="w-full text-sm">
           <thead className="sticky top-0 bg-muted z-10">
             <tr>
-              <th className="px-2 py-2 text-left font-semibold border-b">Name</th>
-              <th className="px-2 py-2 text-left font-semibold border-b">Start</th>
-              <th className="px-2 py-2 text-left font-semibold border-b">End</th>
-              <th className="px-2 py-2 text-left font-semibold border-b">Status</th>
-              <th className="px-2 py-2 text-left font-semibold border-b">Owner</th>
-              <th className="px-2 py-2 text-left font-semibold border-b">Group</th>
-              <th className="px-2 py-2 text-left font-semibold border-b">Progress</th>
+              <th className="px-2 py-2 text-left font-semibold border-b relative group" style={{ width: columnWidths.name }}>
+                <div className="flex items-center justify-between">
+                  <span>Name</span>
+                  <div
+                    className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                    onMouseDown={(e) => handleResizeStart(e, 'name')}
+                  >
+                    <GripVertical className="w-3 h-3 text-primary" />
+                  </div>
+                </div>
+              </th>
+              <th className="px-2 py-2 text-left font-semibold border-b relative group" style={{ width: columnWidths.start }}>
+                <div className="flex items-center justify-between">
+                  <span>Start</span>
+                  <div
+                    className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                    onMouseDown={(e) => handleResizeStart(e, 'start')}
+                  >
+                    <GripVertical className="w-3 h-3 text-primary" />
+                  </div>
+                </div>
+              </th>
+              <th className="px-2 py-2 text-left font-semibold border-b relative group" style={{ width: columnWidths.end }}>
+                <div className="flex items-center justify-between">
+                  <span>End</span>
+                  <div
+                    className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                    onMouseDown={(e) => handleResizeStart(e, 'end')}
+                  >
+                    <GripVertical className="w-3 h-3 text-primary" />
+                  </div>
+                </div>
+              </th>
+              <th className="px-2 py-2 text-left font-semibold border-b relative group" style={{ width: columnWidths.status }}>
+                <div className="flex items-center justify-between">
+                  <span>Status</span>
+                  <div
+                    className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                    onMouseDown={(e) => handleResizeStart(e, 'status')}
+                  >
+                    <GripVertical className="w-3 h-3 text-primary" />
+                  </div>
+                </div>
+              </th>
+              <th className="px-2 py-2 text-left font-semibold border-b relative group" style={{ width: columnWidths.owner }}>
+                <div className="flex items-center justify-between">
+                  <span>Owner</span>
+                  <div
+                    className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                    onMouseDown={(e) => handleResizeStart(e, 'owner')}
+                  >
+                    <GripVertical className="w-3 h-3 text-primary" />
+                  </div>
+                </div>
+              </th>
+              <th className="px-2 py-2 text-left font-semibold border-b relative group" style={{ width: columnWidths.group }}>
+                <div className="flex items-center justify-between">
+                  <span>Group</span>
+                  <div
+                    className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                    onMouseDown={(e) => handleResizeStart(e, 'group')}
+                  >
+                    <GripVertical className="w-3 h-3 text-primary" />
+                  </div>
+                </div>
+              </th>
+              <th className="px-2 py-2 text-left font-semibold border-b relative group" style={{ width: columnWidths.progress }}>
+                <div className="flex items-center justify-between">
+                  <span>Progress</span>
+                  <div
+                    className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                    onMouseDown={(e) => handleResizeStart(e, 'progress')}
+                  >
+                    <GripVertical className="w-3 h-3 text-primary" />
+                  </div>
+                </div>
+              </th>
               {onTaskDelete && (
                 <th className="px-2 py-2 text-left font-semibold border-b w-10"></th>
               )}
@@ -625,7 +747,7 @@ export function TaskTable({
           </thead>
           <tbody>
             {tasks.map((task) => (
-              <tr key={task.id} className="border-b hover:bg-muted/50 h-12">
+              <tr key={task.id} className="border-b hover:bg-muted/50" style={{ height: '48px' }}>
                 <td className="px-2 py-1.5 align-middle">
                   {editingCell?.taskId === task.id && editingCell.field === "name" ? (
                     <input
@@ -665,14 +787,14 @@ export function TaskTable({
                           setEditingCell(null)
                         }
                       }}
-                      className="w-full px-1 py-0.5 border rounded focus:outline-none focus:ring-1 focus:ring-primary"
+                      className="w-full h-8 px-2 py-1 bg-background border border-primary rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary transition-all"
                     />
                   ) : (
                     <div
                       onClick={() => setEditingCell({ taskId: task.id, field: "startAt" })}
-                      className="cursor-text px-1 py-0.5 hover:bg-accent/50 rounded"
+                      className="min-h-[2rem] flex items-center cursor-text px-2 py-1 hover:bg-accent/30 rounded-md transition-colors"
                     >
-                      {formatDate(task.startAt)}
+                      {formatDate(task.startAt) || <span className="text-muted-foreground text-xs">Click to edit</span>}
                     </div>
                   )}
                 </td>
@@ -690,14 +812,14 @@ export function TaskTable({
                           setEditingCell(null)
                         }
                       }}
-                      className="w-full px-1 py-0.5 border rounded focus:outline-none focus:ring-1 focus:ring-primary"
+                      className="w-full h-8 px-2 py-1 bg-background border border-primary rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary transition-all"
                     />
                   ) : (
                     <div
                       onClick={() => setEditingCell({ taskId: task.id, field: "endAt" })}
-                      className="cursor-text px-1 py-0.5 hover:bg-accent/50 rounded"
+                      className="min-h-[2rem] flex items-center cursor-text px-2 py-1 hover:bg-accent/30 rounded-md transition-colors"
                     >
-                      {formatDate(task.endAt)}
+                      {formatDate(task.endAt) || <span className="text-muted-foreground text-xs">Click to edit</span>}
                     </div>
                   )}
                 </td>
@@ -718,7 +840,7 @@ export function TaskTable({
                           setEditingCell(null)
                         }
                       }}
-                      className="w-full px-1 py-0.5 border rounded focus:outline-none focus:ring-1 focus:ring-primary"
+                      className="w-full h-8 px-2 py-1 bg-background border border-primary rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary transition-all cursor-pointer"
                     >
                       <option value="">None</option>
                       {statuses.map((status) => (
@@ -730,9 +852,9 @@ export function TaskTable({
                   ) : (
                     <div
                       onClick={() => setEditingCell({ taskId: task.id, field: "status" })}
-                      className="cursor-text px-1 py-0.5 hover:bg-accent/50 rounded flex items-center gap-1.5"
+                      className="min-h-[2rem] flex items-center cursor-text px-2 py-1 hover:bg-accent/30 rounded-md transition-colors gap-1.5"
                     >
-                      {task.status && (
+                      {task.status ? (
                         <>
                           <div
                             className="w-3 h-3 rounded"
@@ -740,6 +862,8 @@ export function TaskTable({
                           />
                           <span>{task.status.name}</span>
                         </>
+                      ) : (
+                        <span className="text-muted-foreground text-xs">Click to edit</span>
                       )}
                     </div>
                   )}
@@ -758,14 +882,14 @@ export function TaskTable({
                           setEditingCell(null)
                         }
                       }}
-                      className="w-full px-1 py-0.5 border rounded focus:outline-none focus:ring-1 focus:ring-primary"
+                      className="w-full h-8 px-2 py-1 bg-background border border-primary rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary transition-all"
                     />
                   ) : (
                     <div
                       onClick={() => setEditingCell({ taskId: task.id, field: "owner" })}
-                      className="cursor-text px-1 py-0.5 hover:bg-accent/50 rounded"
+                      className="min-h-[2rem] flex items-center cursor-text px-2 py-1 hover:bg-accent/30 rounded-md transition-colors"
                     >
-                      {task.owner || ""}
+                      {task.owner || <span className="text-muted-foreground text-xs">Click to edit</span>}
                     </div>
                   )}
                 </td>
@@ -783,14 +907,14 @@ export function TaskTable({
                           setEditingCell(null)
                         }
                       }}
-                      className="w-full px-1 py-0.5 border rounded focus:outline-none focus:ring-1 focus:ring-primary"
+                      className="w-full h-8 px-2 py-1 bg-background border border-primary rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary transition-all"
                     />
                   ) : (
                     <div
                       onClick={() => setEditingCell({ taskId: task.id, field: "group" })}
-                      className="cursor-text px-1 py-0.5 hover:bg-accent/50 rounded"
+                      className="min-h-[2rem] flex items-center cursor-text px-2 py-1 hover:bg-accent/30 rounded-md transition-colors"
                     >
-                      {task.group || ""}
+                      {task.group || <span className="text-muted-foreground text-xs">Click to edit</span>}
                     </div>
                   )}
                 </td>
@@ -810,14 +934,14 @@ export function TaskTable({
                           setEditingCell(null)
                         }
                       }}
-                      className="w-full px-1 py-0.5 border rounded focus:outline-none focus:ring-1 focus:ring-primary"
+                      className="w-full h-8 px-2 py-1 bg-background border border-primary rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary transition-all"
                     />
                   ) : (
                     <div
                       onClick={() => setEditingCell({ taskId: task.id, field: "progress" })}
-                      className="cursor-text px-1 py-0.5 hover:bg-accent/50 rounded"
+                      className="min-h-[2rem] flex items-center cursor-text px-2 py-1 hover:bg-accent/30 rounded-md transition-colors"
                     >
-                      {task.progress || 0}%
+                      {task.progress !== undefined ? `${task.progress}%` : <span className="text-muted-foreground text-xs">Click to edit</span>}
                     </div>
                   )}
                 </td>

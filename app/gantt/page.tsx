@@ -1,6 +1,6 @@
 "use client"
 
-import { Suspense, useCallback, useEffect, useState } from "react"
+import { Suspense, useCallback, useEffect, useState, useRef } from "react"
 import { useSearchParams } from "next/navigation"
 import {
   GanttProvider,
@@ -14,6 +14,10 @@ import { TaskTable } from "@/components/ui/task-table"
 import { TaskStatus, Task } from "@/types/task"
 import { ClientSessionManager } from "@/lib/client-session-manager"
 import { ClientBaserowProvider } from "@/lib/providers/baserow/client-baserow-provider"
+import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels"
+import { ExportButtons } from "@/components/export-buttons"
+import { GripVertical, Settings, X } from "lucide-react"
+import { DataFieldMapper, FieldMapping, ColorRule, TextTemplate } from "@/components/data-field-mapper"
 
 // Inner component that can access Gantt context
 function GanttContent({
@@ -30,31 +34,101 @@ function GanttContent({
   onTasksImport: (tasks: Partial<Task>[]) => Promise<void>
 }) {
   const { viewStart, viewEnd, timescale } = useGantt()
+  const tableRef = useRef<HTMLDivElement>(null)
+  const ganttRef = useRef<HTMLDivElement>(null)
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-      {/* Task Table */}
-      <div className="lg:col-span-5 border rounded-lg overflow-hidden shadow-lg">
-        <TaskTable
-          tasks={tasks}
-          statuses={statuses}
-          onTaskUpdate={onTaskUpdate}
-          onTaskDelete={onTaskDelete}
-          onTasksImport={onTasksImport}
-          viewStart={viewStart}
-          viewEnd={viewEnd}
-          timescale={timescale}
+    <div className="space-y-4">
+      {/* Export Controls */}
+      <div className="flex items-center justify-end">
+        <ExportButtons
+          ganttRef={ganttRef}
+          tableRef={tableRef}
+          filename="project-gantt"
         />
       </div>
 
-      {/* Gantt Chart */}
-      <div className="lg:col-span-7 border rounded-lg overflow-hidden shadow-lg">
-        <GanttHeader />
-        <GanttFeatureList />
-      </div>
+      {/* Resizable Panel Layout */}
+      <PanelGroup direction="horizontal" className="min-h-[600px] border rounded-lg overflow-hidden shadow-lg">
+        {/* Task Table Panel */}
+        <Panel defaultSize={35} minSize={20} maxSize={60}>
+          <div ref={tableRef} className="h-full overflow-hidden bg-background">
+            <TaskTable
+              tasks={tasks}
+              statuses={statuses}
+              onTaskUpdate={onTaskUpdate}
+              onTaskDelete={onTaskDelete}
+              onTasksImport={onTasksImport}
+              viewStart={viewStart}
+              viewEnd={viewEnd}
+              timescale={timescale}
+            />
+          </div>
+        </Panel>
+
+        {/* Resize Handle */}
+        <PanelResizeHandle className="w-1 bg-border hover:bg-primary transition-colors relative group">
+          <div className="absolute inset-0 flex items-center justify-center">
+            <GripVertical className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+          </div>
+        </PanelResizeHandle>
+
+        {/* Gantt Chart Panel */}
+        <Panel defaultSize={65} minSize={40}>
+          <div ref={ganttRef} className="h-full overflow-hidden bg-background">
+            <GanttHeader />
+            <GanttFeatureList />
+          </div>
+        </Panel>
+      </PanelGroup>
     </div>
   )
 }
+
+// Demo data for the field mapper
+const DEMO_SOURCE_DATA = [
+  {
+    task_name: 'Design Homepage',
+    start_date: '2024-01-15',
+    due_date: '2024-01-22',
+    task_status: 'In Progress',
+    assigned_to: 'Alice Johnson',
+    team: 'Design',
+    notes: 'Create wireframes and mockups',
+    completion: 65,
+  },
+  {
+    task_name: 'Backend API Development',
+    start_date: '2024-01-20',
+    due_date: '2024-02-10',
+    task_status: 'Not Started',
+    assigned_to: 'Bob Smith',
+    team: 'Engineering',
+    notes: 'Build RESTful API endpoints',
+    completion: 0,
+  },
+  {
+    task_name: 'User Testing',
+    start_date: '2024-02-15',
+    due_date: '2024-02-28',
+    task_status: 'Planned',
+    assigned_to: 'Carol White',
+    team: 'Product',
+    notes: 'Conduct usability tests',
+    completion: 0,
+  },
+]
+
+const DEMO_SOURCE_FIELDS = [
+  'task_name',
+  'start_date',
+  'due_date',
+  'task_status',
+  'assigned_to',
+  'team',
+  'notes',
+  'completion',
+]
 
 function GanttPageContent() {
   const searchParams = useSearchParams()
@@ -65,6 +139,7 @@ function GanttPageContent() {
   const [warning, setWarning] = useState<string | null>(null)
   const [isClientMode, setIsClientMode] = useState(false)
   const [clientProvider, setClientProvider] = useState<ClientBaserowProvider | null>(null)
+  const [showDataMapper, setShowDataMapper] = useState(false)
 
   // Initialize client mode if needed
   useEffect(() => {
@@ -631,6 +706,14 @@ function GanttPageContent() {
           <div className="mb-6 flex items-center justify-between">
             <h1 className="text-3xl font-bold">Project Gantt Chart</h1>
             <div className="flex gap-2">
+              <button
+                onClick={() => setShowDataMapper(true)}
+                className="flex items-center gap-2 px-4 py-2 border rounded hover:bg-accent transition-colors"
+                title="Configure Field Mapping"
+              >
+                <Settings className="w-4 h-4" />
+                Field Mapper
+              </button>
               <GanttCreateMarkerTrigger />
               <button
                 onClick={loadData}
@@ -676,6 +759,80 @@ function GanttPageContent() {
             </div>
           )}
         </div>
+
+        {/* Data Field Mapper Modal */}
+        {showDataMapper && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+            <div className="relative w-full max-w-6xl max-h-[90vh] m-4 bg-background border rounded-lg shadow-2xl overflow-hidden flex flex-col">
+              {/* Modal Header */}
+              <div className="flex items-center justify-between p-6 border-b bg-muted/50">
+                <div>
+                  <h2 className="text-2xl font-bold">Data Field Mapper</h2>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Configure how your data fields map to Gantt chart properties
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowDataMapper(false)}
+                  className="p-2 hover:bg-accent rounded-lg transition-colors"
+                  aria-label="Close"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Modal Content */}
+              <div className="flex-1 overflow-y-auto p-6">
+                <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <h3 className="text-sm font-semibold text-blue-900 mb-2">Demo Mode</h3>
+                  <p className="text-sm text-blue-700">
+                    This is a demonstration of the field mapping interface using sample data.
+                    In production, this would connect to your actual data source and allow you to:
+                  </p>
+                  <ul className="mt-2 text-sm text-blue-700 list-disc list-inside space-y-1">
+                    <li>Map source fields to Gantt chart properties</li>
+                    <li>Configure color rules based on field values</li>
+                    <li>Set up text templates for task display</li>
+                    <li>Validate data and preview transformations</li>
+                  </ul>
+                </div>
+
+                <DataFieldMapper
+                  sourceFields={DEMO_SOURCE_FIELDS}
+                  sourceData={DEMO_SOURCE_DATA}
+                  onMappingChange={(mappings: FieldMapping[]) => {
+                    console.log('Field mappings updated:', mappings)
+                  }}
+                  onColorRulesChange={(rules: ColorRule[]) => {
+                    console.log('Color rules updated:', rules)
+                  }}
+                  onTextTemplatesChange={(templates: TextTemplate[]) => {
+                    console.log('Text templates updated:', templates)
+                  }}
+                />
+              </div>
+
+              {/* Modal Footer */}
+              <div className="flex items-center justify-end gap-3 p-6 border-t bg-muted/50">
+                <button
+                  onClick={() => setShowDataMapper(false)}
+                  className="px-4 py-2 border rounded-lg hover:bg-accent transition-colors"
+                >
+                  Close
+                </button>
+                <button
+                  onClick={() => {
+                    setShowDataMapper(false)
+                    alert('In production, this would save your mapping configuration.')
+                  }}
+                  className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity"
+                >
+                  Save Configuration
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </GanttProvider>
   )
