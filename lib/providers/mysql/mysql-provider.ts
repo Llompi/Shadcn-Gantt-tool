@@ -150,8 +150,11 @@ export class MySQLProvider implements IDataProvider {
       [id]
     )
 
-    const results = rows as any[]
-    return results.length > 0 ? this.mapRowToTask(results[0]) : null
+    const results = rows as unknown[]
+    if (results.length > 0) {
+      return this.mapRowToTask(results[0] as Record<string, unknown>)
+    }
+    return null
   }
 
   async createTask(data: CreateTaskDTO): Promise<Task> {

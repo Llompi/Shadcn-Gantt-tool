@@ -164,7 +164,7 @@ export class MongoDBProvider implements IDataProvider {
     const db = await this.getDb()
     const collection = db.collection(this.config.tasksCollection!)
 
-    const updates: any = {
+    const updates: Document = {
       updatedAt: new Date(),
     }
 

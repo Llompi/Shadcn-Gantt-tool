@@ -192,7 +192,7 @@ export function DatabaseExplorer({
               <select
                 value={connectionConfig.type}
                 onChange={(e) =>
-                  setConnectionConfig({ ...connectionConfig, type: e.target.value as any })
+                  setConnectionConfig({ ...connectionConfig, type: e.target.value as ConnectionConfig['type'] })
                 }
                 className="modern-input"
               >

@@ -246,7 +246,8 @@ export const useGanttUIStore = create<GanttUIState>()(
       },
 
       clearDateRangeFilter: () => {
-        const { dateRange: _dateRange, ...rest } = get().filter
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { dateRange, ...rest } = get().filter
         set({ filter: rest })
       },
 

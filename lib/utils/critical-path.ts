@@ -68,6 +68,7 @@ export function calculateCriticalPath(
   return criticalPathTasks
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function forwardPass(
   taskMap: Map<string, TaskNode>,
   _dependencies: TaskDependency[]
