@@ -461,6 +461,7 @@ export function GanttFeatureItem({ task }: { task: GanttTask }) {
   const [isDragging, setIsDragging] = React.useState(false)
   const [isResizing, setIsResizing] = React.useState<"start" | "end" | null>(null)
   const [dragOffset, setDragOffset] = React.useState({ start: 0, end: 0 })
+  const [isHovered, setIsHovered] = React.useState(false)
 
   const totalDays = (viewEnd.getTime() - viewStart.getTime()) / (24 * 60 * 60 * 1000)
   const startOffset = (task.startAt.getTime() - viewStart.getTime()) / (24 * 60 * 60 * 1000)
@@ -547,24 +548,35 @@ export function GanttFeatureItem({ task }: { task: GanttTask }) {
   if (isMilestone) {
     return (
       <div
-        className="absolute cursor-pointer transition-opacity hover:opacity-80 flex items-center justify-center"
+        className={cn(
+          "absolute cursor-pointer flex items-center justify-center transition-all duration-200 ease-out",
+          isHovered && "scale-110 drop-shadow-lg"
+        )}
         style={{
           left: `${Math.max(0, leftPercent)}%`,
           opacity: isDragging ? 0.7 : 1,
           transform: 'translateX(-50%)',
         }}
         onMouseDown={(e) => handleMouseDown(e, "move")}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
         onClick={() => onTaskClick?.(task)}
         title={`${task.name}\n${task.startAt.toLocaleDateString()}`}
       >
         <Diamond
-          className="w-8 h-8"
+          className={cn(
+            "w-8 h-8 transition-all duration-200",
+            isHovered && "drop-shadow-md"
+          )}
           fill={backgroundColor}
           stroke={backgroundColor}
           strokeWidth={2}
         />
         <span
-          className="absolute text-xs font-bold whitespace-nowrap"
+          className={cn(
+            "absolute text-xs font-bold whitespace-nowrap transition-all duration-200",
+            isHovered && "font-extrabold"
+          )}
           style={{
             left: '100%',
             marginLeft: '8px',
@@ -579,30 +591,51 @@ export function GanttFeatureItem({ task }: { task: GanttTask }) {
 
   return (
     <div
-      className="absolute h-8 rounded cursor-move transition-opacity hover:opacity-80"
+      className={cn(
+        "absolute h-8 rounded cursor-move transition-all duration-200 ease-out",
+        isHovered && "shadow-lg ring-2 ring-white/30 scale-105 -translate-y-0.5",
+        isDragging || isResizing ? "opacity-70 shadow-2xl" : "opacity-100"
+      )}
       style={{
         left: `${Math.max(0, leftPercent)}%`,
         width: `${Math.min(100 - leftPercent, widthPercent)}%`,
         backgroundColor,
-        opacity: isDragging || isResizing ? 0.7 : 1,
       }}
       onMouseDown={(e) => handleMouseDown(e, "move")}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
       onClick={() => onTaskClick?.(task)}
       title={`${task.name}\n${task.startAt.toLocaleDateString()} - ${task.endAt.toLocaleDateString()}`}
     >
       {/* Resize handle - start */}
       <div
-        className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-black/20"
+        className={cn(
+          "absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize transition-colors",
+          isHovered ? "bg-white/20" : "bg-transparent"
+        )}
         onMouseDown={(e) => handleMouseDown(e, "resize-start")}
       />
 
-      <div className="px-2 py-1 text-xs text-white font-medium truncate">
+      <div className="px-2 py-1 text-xs text-white font-medium truncate flex items-center h-full">
         {task.name}
       </div>
 
+      {/* Progress bar */}
+      {task.progress !== undefined && task.progress > 0 && (
+        <div className="absolute bottom-0 left-0 h-1 bg-white/30 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-white/60 transition-all duration-500 ease-out"
+            style={{ width: `${task.progress}%` }}
+          />
+        </div>
+      )}
+
       {/* Resize handle - end */}
       <div
-        className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-black/20"
+        className={cn(
+          "absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize transition-colors",
+          isHovered ? "bg-white/20" : "bg-transparent"
+        )}
         onMouseDown={(e) => handleMouseDown(e, "resize-end")}
       />
     </div>
@@ -611,8 +644,150 @@ export function GanttFeatureItem({ task }: { task: GanttTask }) {
 
 // Feature List (Container for tasks)
 export function GanttFeatureList({ className }: { className?: string }) {
-  const { tasks, viewStart, viewEnd, timescale, setTimescale } = useGantt()
+  const { tasks, viewStart, viewEnd, timescale, setTimescale, setViewRange } = useGantt()
   const containerRef = React.useRef<HTMLDivElement>(null)
+  const scrollVelocityRef = React.useRef({ x: 0, y: 0 })
+  const lastScrollRef = React.useRef({ x: 0, y: 0, time: 0 })
+  const momentumFrameRef = React.useRef<number | null>(null)
+  const [isSpacePressed, setIsSpacePressed] = React.useState(false)
+  const [isPanning, setIsPanning] = React.useState(false)
+  const [panStart, setPanStart] = React.useState({ x: 0, y: 0, scrollX: 0, scrollY: 0 })
+
+  // Smooth momentum scrolling
+  const startMomentumScroll = React.useCallback(() => {
+    if (momentumFrameRef.current) {
+      cancelAnimationFrame(momentumFrameRef.current)
+    }
+
+    const container = containerRef.current
+    if (!container) return
+
+    const animate = () => {
+      const friction = 0.92 // Apple-like friction
+      const threshold = 0.5
+
+      scrollVelocityRef.current.x *= friction
+      scrollVelocityRef.current.y *= friction
+
+      if (
+        Math.abs(scrollVelocityRef.current.x) < threshold &&
+        Math.abs(scrollVelocityRef.current.y) < threshold
+      ) {
+        scrollVelocityRef.current = { x: 0, y: 0 }
+        momentumFrameRef.current = null
+        return
+      }
+
+      container.scrollLeft += scrollVelocityRef.current.x
+      container.scrollTop += scrollVelocityRef.current.y
+
+      momentumFrameRef.current = requestAnimationFrame(animate)
+    }
+
+    momentumFrameRef.current = requestAnimationFrame(animate)
+  }, [])
+
+  // Space key for pan mode
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'Space' && !e.repeat) {
+        e.preventDefault()
+        setIsSpacePressed(true)
+        if (containerRef.current) {
+          containerRef.current.style.cursor = 'grab'
+        }
+      }
+    }
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        e.preventDefault()
+        setIsSpacePressed(false)
+        if (containerRef.current && !isPanning) {
+          containerRef.current.style.cursor = ''
+        }
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    window.addEventListener('keyup', handleKeyUp)
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener('keyup', handleKeyUp)
+    }
+  }, [isPanning])
+
+  // Mouse pan with space key
+  const handleMouseDown = React.useCallback(
+    (e: React.MouseEvent) => {
+      if (isSpacePressed && e.button === 0) {
+        e.preventDefault()
+        setIsPanning(true)
+        const container = containerRef.current
+        if (container) {
+          container.style.cursor = 'grabbing'
+          setPanStart({
+            x: e.clientX,
+            y: e.clientY,
+            scrollX: container.scrollLeft,
+            scrollY: container.scrollTop,
+          })
+          lastScrollRef.current = { x: e.clientX, y: e.clientY, time: Date.now() }
+          scrollVelocityRef.current = { x: 0, y: 0 }
+        }
+      }
+    },
+    [isSpacePressed]
+  )
+
+  const handleMouseMove = React.useCallback(
+    (e: React.MouseEvent) => {
+      if (isPanning) {
+        const container = containerRef.current
+        if (!container) return
+
+        const deltaX = e.clientX - panStart.x
+        const deltaY = e.clientY - panStart.y
+
+        container.scrollLeft = panStart.scrollX - deltaX
+        container.scrollTop = panStart.scrollY - deltaY
+
+        // Calculate velocity for momentum
+        const currentTime = Date.now()
+        const timeDelta = currentTime - lastScrollRef.current.time
+
+        if (timeDelta > 0) {
+          scrollVelocityRef.current = {
+            x: -(e.clientX - lastScrollRef.current.x) / timeDelta * 16,
+            y: -(e.clientY - lastScrollRef.current.y) / timeDelta * 16,
+          }
+        }
+
+        lastScrollRef.current = { x: e.clientX, y: e.clientY, time: currentTime }
+      }
+    },
+    [isPanning, panStart]
+  )
+
+  const handleMouseUp = React.useCallback(() => {
+    if (isPanning) {
+      setIsPanning(false)
+      const container = containerRef.current
+      if (container) {
+        container.style.cursor = isSpacePressed ? 'grab' : ''
+
+        // Start momentum
+        const speed = Math.sqrt(
+          scrollVelocityRef.current.x ** 2 + scrollVelocityRef.current.y ** 2
+        )
+
+        if (speed > 0.5) {
+          startMomentumScroll()
+        }
+      }
+    }
+  }, [isPanning, isSpacePressed, startMomentumScroll])
 
   // Handle scroll events for shift+scroll (horizontal pan) and ctrl+scroll (zoom)
   React.useEffect(() => {
@@ -620,20 +795,14 @@ export function GanttFeatureList({ className }: { className?: string }) {
     if (!container) return
 
     const handleWheel = (e: WheelEvent) => {
-      // Only handle wheel events with modifiers (shift or ctrl/cmd)
-      // Let normal scrolling work naturally for better performance
-      const hasModifiers = e.shiftKey || e.ctrlKey || e.metaKey
-      if (!hasModifiers) {
-        return // Allow default scroll behavior
-      }
-
-      // Shift+scroll for horizontal scrolling
+      // Shift+scroll for horizontal scrolling (smooth)
       if (e.shiftKey && !e.ctrlKey && !e.metaKey) {
         e.preventDefault()
-        // Scroll the container horizontally instead of changing the date range
         container.scrollLeft += e.deltaY
+        scrollVelocityRef.current = { x: e.deltaY * 0.3, y: 0 }
+        startMomentumScroll()
       }
-      // Ctrl+scroll for zooming (changing timescale)
+      // Ctrl+scroll for zooming (changing timescale) - smooth zoom
       else if ((e.ctrlKey || e.metaKey) && !e.shiftKey) {
         e.preventDefault()
 
@@ -641,12 +810,20 @@ export function GanttFeatureList({ className }: { className?: string }) {
         const currentIndex = scales.indexOf(timescale)
 
         if (e.deltaY < 0 && currentIndex > 0) {
-          // Zoom in (scroll up)
           setTimescale(scales[currentIndex - 1])
         } else if (e.deltaY > 0 && currentIndex < scales.length - 1) {
-          // Zoom out (scroll down)
           setTimescale(scales[currentIndex + 1])
         }
+      }
+      // Regular scroll - add momentum
+      else if (!e.shiftKey && !e.ctrlKey && !e.metaKey) {
+        scrollVelocityRef.current = { x: e.deltaX * 0.2, y: e.deltaY * 0.2 }
+        // Natural scrolling with slight momentum enhancement
+        setTimeout(() => {
+          if (Math.abs(scrollVelocityRef.current.x) > 1 || Math.abs(scrollVelocityRef.current.y) > 1) {
+            startMomentumScroll()
+          }
+        }, 50)
       }
     }
 
@@ -654,30 +831,65 @@ export function GanttFeatureList({ className }: { className?: string }) {
 
     return () => {
       container.removeEventListener("wheel", handleWheel)
+      if (momentumFrameRef.current) {
+        cancelAnimationFrame(momentumFrameRef.current)
+      }
     }
-  }, [timescale, setTimescale])
+  }, [timescale, setTimescale, startMomentumScroll])
 
   // Calculate minimum width for timeline to ensure proper scrolling
   const totalDays = (viewEnd.getTime() - viewStart.getTime()) / (24 * 60 * 60 * 1000)
   const minWidthPx = Math.max(1200, totalDays * 40) // Minimum 40px per day, at least 1200px
 
   return (
-    <div ref={containerRef} className={cn("relative overflow-x-auto", className)}>
+    <div
+      ref={containerRef}
+      className={cn(
+        "relative overflow-auto scroll-smooth gantt-scrollbar",
+        isPanning && "select-none",
+        className
+      )}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
+      style={{
+        scrollBehavior: momentumFrameRef.current ? 'auto' : 'smooth',
+      }}
+    >
       <div style={{ minWidth: `${minWidthPx}px` }}>
         <TimelineGrid />
         <div id="gantt-timeline-container" className="relative min-h-[400px] p-4">
           <GanttToday />
-          <div className="space-y-2">
-            {tasks.map((task) => (
-              <div key={task.id} className="relative h-12">
-                <div className="absolute inset-y-0 left-0 right-0">
-                  <GanttFeatureItem task={task} />
+          {tasks.length === 0 ? (
+            <div className="flex items-center justify-center h-64">
+              <div className="text-center space-y-2">
+                <div className="text-muted-foreground text-lg">No tasks to display</div>
+                <div className="text-muted-foreground text-sm">
+                  Add tasks to get started with your Gantt chart
                 </div>
               </div>
-            ))}
-          </div>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {tasks.map((task) => (
+                <div key={task.id} className="relative h-12">
+                  <div className="absolute inset-y-0 left-0 right-0">
+                    <GanttFeatureItem task={task} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Interaction hints */}
+      {tasks.length > 0 && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 px-3 py-2 rounded-lg bg-background/80 backdrop-blur-sm border text-xs text-muted-foreground pointer-events-none z-50 opacity-50 hover:opacity-100 transition-opacity">
+          <span className="font-medium">Tips:</span> Space + drag to pan • Ctrl + scroll to zoom • Shift + scroll for horizontal
+        </div>
+      )}
     </div>
   )
 }

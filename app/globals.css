@@ -193,4 +193,64 @@
       0 4px 6px -1px rgba(0, 0, 0, 0.1),
       0 2px 4px -1px rgba(0, 0, 0, 0.06);
   }
+
+  /* Apple-style smooth scrollbars */
+  .smooth-scrollbar::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+  }
+
+  .smooth-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .smooth-scrollbar::-webkit-scrollbar-thumb {
+    background: hsla(var(--foreground), 0.15);
+    border-radius: 100px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+    transition: background 0.2s ease;
+  }
+
+  .smooth-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: hsla(var(--foreground), 0.25);
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+
+  .smooth-scrollbar::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  /* For Firefox */
+  .smooth-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: hsla(var(--foreground), 0.15) transparent;
+  }
+
+  /* Gantt-specific minimal scrollbar */
+  .gantt-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .gantt-scrollbar::-webkit-scrollbar-track {
+    background: hsla(var(--muted), 0.3);
+    border-radius: 4px;
+  }
+
+  .gantt-scrollbar::-webkit-scrollbar-thumb {
+    background: hsla(var(--primary), 0.3);
+    border-radius: 4px;
+    transition: background 0.2s ease;
+  }
+
+  .gantt-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: hsla(var(--primary), 0.5);
+  }
+
+  .gantt-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: hsla(var(--primary), 0.3) hsla(var(--muted), 0.3);
+  }
 }
