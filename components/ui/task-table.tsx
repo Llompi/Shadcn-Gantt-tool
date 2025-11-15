@@ -640,14 +640,14 @@ export function TaskTable({
                           setEditingCell(null)
                         }
                       }}
-                      className="w-full px-1 py-0.5 border rounded focus:outline-none focus:ring-1 focus:ring-primary"
+                      className="w-full h-8 px-2 py-1 bg-background border border-primary rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary transition-all"
                     />
                   ) : (
                     <div
                       onClick={() => setEditingCell({ taskId: task.id, field: "name" })}
-                      className="cursor-text px-1 py-0.5 hover:bg-accent/50 rounded"
+                      className="min-h-[2rem] flex items-center cursor-text px-2 py-1 hover:bg-accent/30 rounded-md transition-colors"
                     >
-                      {task.name}
+                      {task.name || <span className="text-muted-foreground text-xs">Click to edit</span>}
                     </div>
                   )}
                 </td>
