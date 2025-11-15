@@ -105,11 +105,15 @@ export function GanttProvider({
   defaultViewEnd,
   defaultTimescale = "day",
 }: GanttProviderProps) {
+  // Initialize view to show time before and after today
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
   const [viewStart, setViewStart] = React.useState<Date>(
-    defaultViewStart || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+    defaultViewStart || new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000)
   )
   const [viewEnd, setViewEnd] = React.useState<Date>(
-    defaultViewEnd || new Date(Date.now() + 60 * 24 * 60 * 60 * 1000)
+    defaultViewEnd || new Date(today.getTime() + 60 * 24 * 60 * 60 * 1000)
   )
   const [timescale, setTimescale] = React.useState<TimescaleType>(defaultTimescale)
 
@@ -199,15 +203,46 @@ export function GanttHeader({ className }: { className?: string }) {
   }
 
   const goToToday = () => {
-    const today = Date.now()
-    const currentRange = viewEnd.getTime() - viewStart.getTime()
-    const halfRange = currentRange / 2
+    const today = new Date()
+    today.setHours(0, 0, 0, 0) // Start of today
 
-    // Center today in the viewport
-    setViewRange(
-      new Date(today - halfRange),
-      new Date(today + halfRange)
-    )
+    // Calculate new range based on current timescale
+    let newStart: Date
+    let newEnd: Date
+
+    switch (timescale) {
+      case "day":
+        // Show 30 days before and 60 days after today
+        newStart = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000)
+        newEnd = new Date(today.getTime() + 60 * 24 * 60 * 60 * 1000)
+        break
+      case "week":
+        // Show 12 weeks before and 24 weeks after today
+        const weekStart = getStartOfWeek(today)
+        newStart = addWeeks(weekStart, -12)
+        newEnd = addWeeks(weekStart, 24)
+        break
+      case "month":
+        // Show 6 months before and 12 months after today
+        const monthStart = getStartOfMonth(today)
+        newStart = addMonths(monthStart, -6)
+        newEnd = addMonths(monthStart, 12)
+        break
+      case "quarter":
+        // Show 4 quarters before and 8 quarters after today
+        const quarterStart = getStartOfQuarter(today)
+        newStart = addQuarters(quarterStart, -4)
+        newEnd = addQuarters(quarterStart, 8)
+        break
+      default:
+        // Fallback: keep current range but center on today
+        const currentRange = viewEnd.getTime() - viewStart.getTime()
+        const halfRange = currentRange / 2
+        newStart = new Date(today.getTime() - halfRange)
+        newEnd = new Date(today.getTime() + halfRange)
+    }
+
+    setViewRange(newStart, newEnd)
   }
 
   return (
