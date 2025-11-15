@@ -463,6 +463,7 @@ export function GanttFeatureItem({ task, dayWidth }: { task: GanttTask; dayWidth
   const [isResizing, setIsResizing] = React.useState<"start" | "end" | null>(null)
   const [dragOffset, setDragOffset] = React.useState({ start: 0, end: 0 })
   const [isHovered, setIsHovered] = React.useState(false)
+  const [previewPosition, setPreviewPosition] = React.useState<{ left: number; width: number } | null>(null)
 
   const totalDays = (viewEnd.getTime() - viewStart.getTime()) / (24 * 60 * 60 * 1000)
   const startOffset = (task.startAt.getTime() - viewStart.getTime()) / (24 * 60 * 60 * 1000)
@@ -491,12 +492,32 @@ export function GanttFeatureItem({ task, dayWidth }: { task: GanttTask; dayWidth
   }
 
   React.useEffect(() => {
-    if (!isDragging && !isResizing) return
+    if (!isDragging && !isResizing) {
+      setPreviewPosition(null)
+      return
+    }
 
-    const handleMouseMove = () => {
-      // Visual feedback during drag/resize would be implemented here
-      // This could include showing a preview of the new position or showing a tooltip
-      // For now, we handle the actual update in handleMouseUp
+    const handleMouseMove = (e: MouseEvent) => {
+      const container = document.getElementById("gantt-timeline-container")
+      if (!container) return
+
+      const rect = container.getBoundingClientRect()
+      const relativeX = e.clientX - rect.left + container.parentElement!.scrollLeft
+
+      if (isDragging) {
+        // Calculate preview position while dragging
+        const newLeft = Math.max(0, relativeX - dragOffset.start)
+        setPreviewPosition({ left: newLeft, width: widthPx })
+      } else if (isResizing === "start") {
+        // Calculate preview while resizing start
+        const newLeft = Math.max(0, relativeX)
+        const newWidth = Math.max(20, leftPx + widthPx - newLeft)
+        setPreviewPosition({ left: newLeft, width: newWidth })
+      } else if (isResizing === "end") {
+        // Calculate preview while resizing end
+        const newWidth = Math.max(20, relativeX - leftPx)
+        setPreviewPosition({ left: leftPx, width: newWidth })
+      }
     }
 
     const handleMouseUp = async (e: MouseEvent) => {
@@ -505,8 +526,7 @@ export function GanttFeatureItem({ task, dayWidth }: { task: GanttTask; dayWidth
         if (!container) return
 
         const rect = container.getBoundingClientRect()
-        const relativeX = e.clientX - rect.left
-        const dayWidth = rect.width / totalDays
+        const relativeX = e.clientX - rect.left + container.parentElement!.scrollLeft
         const day = Math.floor(relativeX / dayWidth)
 
         if (isDragging) {
@@ -534,6 +554,7 @@ export function GanttFeatureItem({ task, dayWidth }: { task: GanttTask; dayWidth
 
       setIsDragging(false)
       setIsResizing(null)
+      setPreviewPosition(null)
     }
 
     document.addEventListener("mousemove", handleMouseMove)
@@ -542,7 +563,7 @@ export function GanttFeatureItem({ task, dayWidth }: { task: GanttTask; dayWidth
       document.removeEventListener("mousemove", handleMouseMove)
       document.removeEventListener("mouseup", handleMouseUp)
     }
-  }, [isDragging, isResizing, dragOffset, task, totalDays, viewStart, onTaskMove])
+  }, [isDragging, isResizing, dragOffset, task, totalDays, viewStart, onTaskMove, dayWidth, leftPx, widthPx])
 
   const backgroundColor = task.status?.color || "#3b82f6"
 
@@ -592,55 +613,82 @@ export function GanttFeatureItem({ task, dayWidth }: { task: GanttTask; dayWidth
   }
 
   return (
-    <div
-      className={cn(
-        "absolute h-8 rounded cursor-move transition-all duration-200 ease-out",
-        isHovered && "shadow-lg ring-2 ring-white/30 scale-105 -translate-y-0.5",
-        isDragging || isResizing ? "opacity-70 shadow-2xl" : "opacity-100"
-      )}
-      style={{
-        left: `${leftPx}px`,
-        width: `${widthPx}px`,
-        backgroundColor,
-      }}
-      onMouseDown={(e) => handleMouseDown(e, "move")}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      onClick={() => onTaskClick?.(task)}
-      title={`${task.name}\n${task.startAt.toLocaleDateString()} - ${task.endAt.toLocaleDateString()}`}
-    >
-      {/* Resize handle - start */}
+    <>
+      {/* Main task bar */}
       <div
         className={cn(
-          "absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize transition-colors",
-          isHovered ? "bg-white/20" : "bg-transparent"
+          "absolute h-8 rounded cursor-move transition-all duration-200 ease-out",
+          isHovered && !isDragging && !isResizing && "shadow-lg ring-2 ring-white/30 scale-105 -translate-y-0.5",
+          (isDragging || isResizing) && "opacity-30"
         )}
-        onMouseDown={(e) => handleMouseDown(e, "resize-start")}
-      />
+        style={{
+          left: `${leftPx}px`,
+          width: `${widthPx}px`,
+          backgroundColor,
+        }}
+        onMouseDown={(e) => handleMouseDown(e, "move")}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        onClick={() => onTaskClick?.(task)}
+        title={`${task.name}\n${task.startAt.toLocaleDateString()} - ${task.endAt.toLocaleDateString()}`}
+      >
+        {/* Resize handle - start */}
+        <div
+          className={cn(
+            "absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize transition-colors",
+            isHovered ? "bg-white/20" : "bg-transparent"
+          )}
+          onMouseDown={(e) => handleMouseDown(e, "resize-start")}
+        />
 
-      <div className="px-2 py-1 text-xs text-white font-medium truncate flex items-center h-full">
-        {task.name}
+        <div className="px-2 py-1 text-xs text-white font-medium truncate flex items-center h-full">
+          {task.name}
+        </div>
+
+        {/* Progress bar */}
+        {task.progress !== undefined && task.progress > 0 && (
+          <div className="absolute bottom-0 left-0 h-1 bg-white/30 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-white/60 transition-all duration-500 ease-out"
+              style={{ width: `${task.progress}%` }}
+            />
+          </div>
+        )}
+
+        {/* Resize handle - end */}
+        <div
+          className={cn(
+            "absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize transition-colors",
+            isHovered ? "bg-white/20" : "bg-transparent"
+          )}
+          onMouseDown={(e) => handleMouseDown(e, "resize-end")}
+        />
       </div>
 
-      {/* Progress bar */}
-      {task.progress !== undefined && task.progress > 0 && (
-        <div className="absolute bottom-0 left-0 h-1 bg-white/30 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-white/60 transition-all duration-500 ease-out"
-            style={{ width: `${task.progress}%` }}
-          />
+      {/* Preview/ghost while dragging or resizing */}
+      {previewPosition && (isDragging || isResizing) && (
+        <div
+          className="absolute h-8 rounded pointer-events-none z-30 shadow-2xl ring-2 ring-white/50"
+          style={{
+            left: `${previewPosition.left}px`,
+            width: `${previewPosition.width}px`,
+            backgroundColor,
+            opacity: 0.8,
+          }}
+        >
+          <div className="px-2 py-1 text-xs text-white font-bold truncate flex items-center h-full">
+            {task.name}
+          </div>
+
+          {/* Date tooltip */}
+          <div className="absolute -top-8 left-0 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap shadow-lg">
+            {isDragging && 'Moving...'}
+            {isResizing === 'start' && 'Resize start'}
+            {isResizing === 'end' && 'Resize end'}
+          </div>
         </div>
       )}
-
-      {/* Resize handle - end */}
-      <div
-        className={cn(
-          "absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize transition-colors",
-          isHovered ? "bg-white/20" : "bg-transparent"
-        )}
-        onMouseDown={(e) => handleMouseDown(e, "resize-end")}
-      />
-    </div>
+    </>
   )
 }
 
