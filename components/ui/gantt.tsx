@@ -246,7 +246,7 @@ export function GanttHeader({ className }: { className?: string }) {
 }
 
 // Timeline Grid with hierarchical time header
-function TimelineGrid({ className }: { className?: string }) {
+function TimelineGrid({ className, dayWidth }: { className?: string; dayWidth: number }) {
   const { viewStart, viewEnd, timescale } = useGantt()
 
   // Calculate periods based on timescale
@@ -387,6 +387,24 @@ function TimelineGrid({ className }: { className?: string }) {
 
   const { periods, timeHeaders } = getPeriods()
 
+  // Calculate pixel widths for periods based on dayWidth and timescale
+  const getPeriodWidth = () => {
+    switch (timescale) {
+      case 'day':
+        return dayWidth // Each day column
+      case 'week':
+        return dayWidth * 7 // Each week column (7 days)
+      case 'month':
+        return dayWidth * 30 // Approximate month (30 days)
+      case 'quarter':
+        return dayWidth * 90 // Approximate quarter (90 days)
+      default:
+        return dayWidth
+    }
+  }
+
+  const periodWidthPx = getPeriodWidth()
+
   return (
     <div className={cn("relative h-full", className)}>
       {/* Time header (year/month/etc) */}
@@ -395,7 +413,7 @@ function TimelineGrid({ className }: { className?: string }) {
           <div
             key={i}
             className="border-r text-xs font-semibold p-1 text-center flex items-center justify-center"
-            style={{ flex: header.span }}
+            style={{ width: `${header.span * periodWidthPx}px`, minWidth: `${header.span * periodWidthPx}px` }}
           >
             {header.label}
           </div>
@@ -410,9 +428,10 @@ function TimelineGrid({ className }: { className?: string }) {
             <div
               key={i}
               className={cn(
-                "flex-1 border-r text-xs p-1 text-center",
+                "border-r text-xs p-1 text-center",
                 isWeekend && "bg-muted/70"
               )}
+              style={{ width: `${periodWidthPx}px`, minWidth: `${periodWidthPx}px` }}
             >
               <div className="font-medium">{period.label}</div>
               {period.subLabel && (
@@ -435,28 +454,10 @@ function getWeekNumber(date: Date): number {
   return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7)
 }
 
-// Today Marker
-export function GanttToday() {
-  const { viewStart, viewEnd } = useGantt()
-  const today = new Date()
-  const totalDays = (viewEnd.getTime() - viewStart.getTime()) / (24 * 60 * 60 * 1000)
-  const daysSinceStart = (today.getTime() - viewStart.getTime()) / (24 * 60 * 60 * 1000)
-  const leftPercent = (daysSinceStart / totalDays) * 100
-
-  if (leftPercent < 0 || leftPercent > 100) return null
-
-  return (
-    <div
-      className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-10 pointer-events-none"
-      style={{ left: `${leftPercent}%` }}
-    >
-      <div className="absolute -top-2 -left-2 w-4 h-4 bg-red-500 rounded-full" />
-    </div>
-  )
-}
+// Today Marker - now rendered inline in GanttFeatureList for proper positioning
 
 // Feature Item (Task Bar)
-export function GanttFeatureItem({ task }: { task: GanttTask }) {
+export function GanttFeatureItem({ task, dayWidth }: { task: GanttTask; dayWidth: number }) {
   const { viewStart, viewEnd, onTaskMove, onTaskClick } = useGantt()
   const [isDragging, setIsDragging] = React.useState(false)
   const [isResizing, setIsResizing] = React.useState<"start" | "end" | null>(null)
@@ -467,8 +468,9 @@ export function GanttFeatureItem({ task }: { task: GanttTask }) {
   const startOffset = (task.startAt.getTime() - viewStart.getTime()) / (24 * 60 * 60 * 1000)
   const duration = (task.endAt.getTime() - task.startAt.getTime()) / (24 * 60 * 60 * 1000)
 
-  const leftPercent = (startOffset / totalDays) * 100
-  const widthPercent = (duration / totalDays) * 100
+  // Use pixel-based positioning for proper scaling
+  const leftPx = startOffset * dayWidth
+  const widthPx = Math.max(duration * dayWidth, 20) // Minimum 20px width
 
   // Check if this is a milestone (same start and end date)
   const isMilestone = task.startAt.toDateString() === task.endAt.toDateString()
@@ -553,7 +555,7 @@ export function GanttFeatureItem({ task }: { task: GanttTask }) {
           isHovered && "scale-110 drop-shadow-lg"
         )}
         style={{
-          left: `${Math.max(0, leftPercent)}%`,
+          left: `${leftPx}px`,
           opacity: isDragging ? 0.7 : 1,
           transform: 'translateX(-50%)',
         }}
@@ -597,8 +599,8 @@ export function GanttFeatureItem({ task }: { task: GanttTask }) {
         isDragging || isResizing ? "opacity-70 shadow-2xl" : "opacity-100"
       )}
       style={{
-        left: `${Math.max(0, leftPercent)}%`,
-        width: `${Math.min(100 - leftPercent, widthPercent)}%`,
+        left: `${leftPx}px`,
+        width: `${widthPx}px`,
         backgroundColor,
       }}
       onMouseDown={(e) => handleMouseDown(e, "move")}
@@ -837,9 +839,26 @@ export function GanttFeatureList({ className }: { className?: string }) {
     }
   }, [timescale, setTimescale, startMomentumScroll])
 
-  // Calculate minimum width for timeline to ensure proper scrolling
+  // Calculate day width based on timescale for proper zoom scaling
   const totalDays = (viewEnd.getTime() - viewStart.getTime()) / (24 * 60 * 60 * 1000)
-  const minWidthPx = Math.max(1200, totalDays * 40) // Minimum 40px per day, at least 1200px
+
+  // Dynamic day width based on timescale (zoom level)
+  const dayWidth = React.useMemo(() => {
+    switch (timescale) {
+      case 'day':
+        return 80 // 80px per day for day view (zoomed in)
+      case 'week':
+        return 40 // 40px per day for week view
+      case 'month':
+        return 20 // 20px per day for month view
+      case 'quarter':
+        return 10 // 10px per day for quarter view (zoomed out)
+      default:
+        return 40
+    }
+  }, [timescale])
+
+  const minWidthPx = totalDays * dayWidth
 
   return (
     <div
@@ -857,10 +876,22 @@ export function GanttFeatureList({ className }: { className?: string }) {
         scrollBehavior: momentumFrameRef.current ? 'auto' : 'smooth',
       }}
     >
-      <div style={{ minWidth: `${minWidthPx}px` }}>
-        <TimelineGrid />
-        <div id="gantt-timeline-container" className="relative min-h-[400px] p-4">
-          <GanttToday />
+      <div style={{ minWidth: `${minWidthPx}px`, position: 'relative' }}>
+        <TimelineGrid dayWidth={dayWidth} />
+        <div id="gantt-timeline-container" className="relative min-h-[400px] p-4 overflow-hidden">
+          {/* Today line with proper positioning */}
+          <div
+            className="absolute top-0 bottom-0 w-0.5 bg-red-500 pointer-events-none z-20"
+            style={{
+              left: `${((Date.now() - viewStart.getTime()) / (24 * 60 * 60 * 1000)) * dayWidth}px`,
+            }}
+          >
+            <div className="absolute -top-2 -left-2 w-4 h-4 bg-red-500 rounded-full shadow-lg" />
+            <div className="absolute top-0 left-2 text-xs font-bold text-red-500 whitespace-nowrap">
+              Today
+            </div>
+          </div>
+
           {tasks.length === 0 ? (
             <div className="flex items-center justify-center h-64">
               <div className="text-center space-y-2">
@@ -873,9 +904,9 @@ export function GanttFeatureList({ className }: { className?: string }) {
           ) : (
             <div className="space-y-2">
               {tasks.map((task) => (
-                <div key={task.id} className="relative h-12">
+                <div key={task.id} className="relative h-12 overflow-hidden">
                   <div className="absolute inset-y-0 left-0 right-0">
-                    <GanttFeatureItem task={task} />
+                    <GanttFeatureItem task={task} dayWidth={dayWidth} />
                   </div>
                 </div>
               ))}
