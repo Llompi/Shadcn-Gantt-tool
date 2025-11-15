@@ -43,8 +43,8 @@ export function DatabaseExplorer({
   const [searchQuery, setSearchQuery] = useState('')
 
   // Mock connection config
-  const [connectionConfig, setConnectionConfig] = useState({
-    type: 'postgres' as const,
+  const [connectionConfig, setConnectionConfig] = useState<ConnectionConfig>({
+    type: 'postgres',
     host: 'localhost',
     port: 5432,
     database: 'gantt_db',
