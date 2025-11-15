@@ -31,6 +31,73 @@ export function TaskTable({
   const [editingCell, setEditingCell] = useState<{ taskId: string; field: string } | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // Define column order for navigation
+  const columns = ['name', 'start', 'end', 'status', 'owner', 'group', 'progress']
+
+  // Navigate to next/previous cell (Excel-like)
+  const navigateCell = (direction: 'up' | 'down' | 'left' | 'right' | 'tab' | 'shiftTab') => {
+    if (!editingCell) return
+
+    const taskIndex = tasks.findIndex(t => t.id === editingCell.taskId)
+    const fieldMap: Record<string, string> = {
+      'name': 'name',
+      'startAt': 'start',
+      'start': 'startAt',
+      'endAt': 'end',
+      'end': 'endAt',
+      'status': 'status',
+      'owner': 'owner',
+      'group': 'group',
+      'progress': 'progress'
+    }
+    const currentField = fieldMap[editingCell.field] || editingCell.field
+    const colIndex = columns.indexOf(currentField)
+
+    let newTaskIndex = taskIndex
+    let newColIndex = colIndex
+
+    switch (direction) {
+      case 'up':
+        newTaskIndex = Math.max(0, taskIndex - 1)
+        break
+      case 'down':
+      case 'tab':
+        if (direction === 'down') {
+          newTaskIndex = Math.min(tasks.length - 1, taskIndex + 1)
+        } else {
+          // Tab: move right, wrap to next row
+          newColIndex = colIndex + 1
+          if (newColIndex >= columns.length) {
+            newColIndex = 0
+            newTaskIndex = Math.min(tasks.length - 1, taskIndex + 1)
+          }
+        }
+        break
+      case 'left':
+      case 'shiftTab':
+        if (direction === 'left') {
+          newColIndex = Math.max(0, colIndex - 1)
+        } else {
+          // Shift+Tab: move left, wrap to previous row
+          newColIndex = colIndex - 1
+          if (newColIndex < 0) {
+            newColIndex = columns.length - 1
+            newTaskIndex = Math.max(0, taskIndex - 1)
+          }
+        }
+        break
+      case 'right':
+        newColIndex = Math.min(columns.length - 1, colIndex + 1)
+        break
+    }
+
+    if (newTaskIndex >= 0 && newTaskIndex < tasks.length) {
+      const newField = columns[newColIndex]
+      const newFieldName = newField === 'start' ? 'startAt' : newField === 'end' ? 'endAt' : newField
+      setEditingCell({ taskId: tasks[newTaskIndex].id, field: newFieldName })
+    }
+  }
+
   // Column width state
   const [columnWidths, setColumnWidths] = useState({
     name: 250,
@@ -87,6 +154,49 @@ export function TaskTable({
     if (!date) return ""
     const d = new Date(date)
     return d.toISOString().split("T")[0]
+  }
+
+  // Centralized keyboard handler for all inputs
+  const handleKeyDown = (e: React.KeyboardEvent, taskId: string, field: keyof Task, getValue: () => string | TaskStatus) => {
+    // Handle Tab/Shift+Tab
+    if (e.key === 'Tab') {
+      e.preventDefault()
+      const value = getValue()
+      handleCellEdit(taskId, field, value)
+      navigateCell(e.shiftKey ? 'shiftTab' : 'tab')
+      return
+    }
+
+    // Handle Arrow keys
+    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+      e.preventDefault()
+      const value = getValue()
+      handleCellEdit(taskId, field, value)
+      const directionMap: Record<string, 'up' | 'down' | 'left' | 'right'> = {
+        'ArrowUp': 'up',
+        'ArrowDown': 'down',
+        'ArrowLeft': 'left',
+        'ArrowRight': 'right'
+      }
+      navigateCell(directionMap[e.key])
+      return
+    }
+
+    // Handle Enter (move down, like Excel)
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      const value = getValue()
+      handleCellEdit(taskId, field, value)
+      navigateCell('down')
+      return
+    }
+
+    // Handle Escape
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      setEditingCell(null)
+      return
+    }
   }
 
   const handleCellEdit = async (taskId: string, field: keyof Task, value: string | number | TaskStatus) => {
@@ -755,13 +865,7 @@ export function TaskTable({
                       defaultValue={task.name}
                       autoFocus
                       onBlur={(e) => handleCellEdit(task.id, "name", e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          handleCellEdit(task.id, "name", e.currentTarget.value)
-                        } else if (e.key === "Escape") {
-                          setEditingCell(null)
-                        }
-                      }}
+                      onKeyDown={(e) => handleKeyDown(e, task.id, "name", () => e.currentTarget.value)}
                       className="w-full h-8 px-2 py-1 bg-background border border-primary rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary transition-all"
                     />
                   ) : (
@@ -780,13 +884,7 @@ export function TaskTable({
                       defaultValue={formatDate(task.startAt)}
                       autoFocus
                       onBlur={(e) => handleCellEdit(task.id, "startAt", e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          handleCellEdit(task.id, "startAt", e.currentTarget.value)
-                        } else if (e.key === "Escape") {
-                          setEditingCell(null)
-                        }
-                      }}
+                      onKeyDown={(e) => handleKeyDown(e, task.id, "startAt", () => e.currentTarget.value)}
                       className="w-full h-8 px-2 py-1 bg-background border border-primary rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary transition-all"
                     />
                   ) : (
@@ -805,13 +903,7 @@ export function TaskTable({
                       defaultValue={formatDate(task.endAt)}
                       autoFocus
                       onBlur={(e) => handleCellEdit(task.id, "endAt", e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          handleCellEdit(task.id, "endAt", e.currentTarget.value)
-                        } else if (e.key === "Escape") {
-                          setEditingCell(null)
-                        }
-                      }}
+                      onKeyDown={(e) => handleKeyDown(e, task.id, "endAt", () => e.currentTarget.value)}
                       className="w-full h-8 px-2 py-1 bg-background border border-primary rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary transition-all"
                     />
                   ) : (
@@ -832,14 +924,10 @@ export function TaskTable({
                         const status = statuses.find((s) => s.id === e.target.value)
                         if (status) handleCellEdit(task.id, "status", status)
                       }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          const status = statuses.find((s) => s.id === e.currentTarget.value)
-                          if (status) handleCellEdit(task.id, "status", status)
-                        } else if (e.key === "Escape") {
-                          setEditingCell(null)
-                        }
-                      }}
+                      onKeyDown={(e) => handleKeyDown(e, task.id, "status", () => {
+                        const status = statuses.find((s) => s.id === e.currentTarget.value)
+                        return status || task.status?.id || ''
+                      })}
                       className="w-full h-8 px-2 py-1 bg-background border border-primary rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary transition-all cursor-pointer"
                     >
                       <option value="">None</option>
@@ -875,13 +963,7 @@ export function TaskTable({
                       defaultValue={task.owner || ""}
                       autoFocus
                       onBlur={(e) => handleCellEdit(task.id, "owner", e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          handleCellEdit(task.id, "owner", e.currentTarget.value)
-                        } else if (e.key === "Escape") {
-                          setEditingCell(null)
-                        }
-                      }}
+                      onKeyDown={(e) => handleKeyDown(e, task.id, "owner", () => e.currentTarget.value)}
                       className="w-full h-8 px-2 py-1 bg-background border border-primary rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary transition-all"
                     />
                   ) : (
@@ -900,13 +982,7 @@ export function TaskTable({
                       defaultValue={task.group || ""}
                       autoFocus
                       onBlur={(e) => handleCellEdit(task.id, "group", e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          handleCellEdit(task.id, "group", e.currentTarget.value)
-                        } else if (e.key === "Escape") {
-                          setEditingCell(null)
-                        }
-                      }}
+                      onKeyDown={(e) => handleKeyDown(e, task.id, "group", () => e.currentTarget.value)}
                       className="w-full h-8 px-2 py-1 bg-background border border-primary rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary transition-all"
                     />
                   ) : (
@@ -927,13 +1003,7 @@ export function TaskTable({
                       defaultValue={task.progress || 0}
                       autoFocus
                       onBlur={(e) => handleCellEdit(task.id, "progress", e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          handleCellEdit(task.id, "progress", e.currentTarget.value)
-                        } else if (e.key === "Escape") {
-                          setEditingCell(null)
-                        }
-                      }}
+                      onKeyDown={(e) => handleKeyDown(e, task.id, "progress", () => e.currentTarget.value)}
                       className="w-full h-8 px-2 py-1 bg-background border border-primary rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary transition-all"
                     />
                   ) : (

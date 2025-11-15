@@ -994,9 +994,9 @@ export function GanttFeatureList({ className }: { className?: string }) {
               </div>
             </div>
           ) : (
-            <div className="space-y-2">
+            <div>
               {tasks.map((task) => (
-                <div key={task.id} className="relative h-12 overflow-hidden">
+                <div key={task.id} className="relative border-b" style={{ height: '48px' }}>
                   <div className="absolute inset-y-0 left-0 right-0">
                     <GanttFeatureItem task={task} dayWidth={dayWidth} />
                   </div>

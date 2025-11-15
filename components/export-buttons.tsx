@@ -18,12 +18,31 @@ export function ExportButtons({ ganttRef, tableRef, filename = 'gantt-chart', cl
     try {
       const html2canvas = (await import('html2canvas')).default
 
+      // Store original styles
+      const originalOverflow = element.style.overflow
+      const originalHeight = element.style.height
+      const originalMaxHeight = element.style.maxHeight
+
+      // Temporarily expand to show all content
+      element.style.overflow = 'visible'
+      element.style.height = 'auto'
+      element.style.maxHeight = 'none'
+
       const canvas = await html2canvas(element, {
         backgroundColor: '#ffffff',
         scale: 2, // Higher quality
         logging: false,
         useCORS: true,
+        scrollY: -window.scrollY,
+        scrollX: -window.scrollX,
+        windowWidth: element.scrollWidth,
+        windowHeight: element.scrollHeight,
       })
+
+      // Restore original styles
+      element.style.overflow = originalOverflow
+      element.style.height = originalHeight
+      element.style.maxHeight = originalMaxHeight
 
       const link = document.createElement('a')
       link.download = `${name}.png`
@@ -40,12 +59,31 @@ export function ExportButtons({ ganttRef, tableRef, filename = 'gantt-chart', cl
       const html2canvas = (await import('html2canvas')).default
       const { jsPDF } = await import('jspdf')
 
+      // Store original styles
+      const originalOverflow = element.style.overflow
+      const originalHeight = element.style.height
+      const originalMaxHeight = element.style.maxHeight
+
+      // Temporarily expand to show all content
+      element.style.overflow = 'visible'
+      element.style.height = 'auto'
+      element.style.maxHeight = 'none'
+
       const canvas = await html2canvas(element, {
         backgroundColor: '#ffffff',
         scale: 2,
         logging: false,
         useCORS: true,
+        scrollY: -window.scrollY,
+        scrollX: -window.scrollX,
+        windowWidth: element.scrollWidth,
+        windowHeight: element.scrollHeight,
       })
+
+      // Restore original styles
+      element.style.overflow = originalOverflow
+      element.style.height = originalHeight
+      element.style.maxHeight = originalMaxHeight
 
       const imgData = canvas.toDataURL('image/png')
       const imgWidth = canvas.width
