@@ -16,8 +16,10 @@ import { ClientSessionManager } from "@/lib/client-session-manager"
 import { ClientBaserowProvider } from "@/lib/providers/baserow/client-baserow-provider"
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels"
 import { ExportButtons } from "@/components/export-buttons"
-import { GripVertical, Settings, X } from "lucide-react"
+import { GripVertical, Settings, X, Save, CheckCircle2 } from "lucide-react"
 import { DataFieldMapper, FieldMapping, ColorRule, TextTemplate } from "@/components/data-field-mapper"
+import { fieldMapperStorage } from "@/lib/storage/field-mapper-storage"
+import { ErrorBoundary } from "@/components/error-boundary"
 
 // Inner component that can access Gantt context
 function GanttContent({
@@ -141,6 +143,12 @@ function GanttPageContent() {
   const [clientProvider, setClientProvider] = useState<ClientBaserowProvider | null>(null)
   const [showDataMapper, setShowDataMapper] = useState(false)
 
+  // Field mapper state
+  const [fieldMappings, setFieldMappings] = useState<FieldMapping[]>([])
+  const [colorRules, setColorRules] = useState<ColorRule[]>([])
+  const [textTemplates, setTextTemplates] = useState<TextTemplate[]>([])
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
+
   // Initialize client mode if needed
   useEffect(() => {
     const mode = searchParams.get("mode")
@@ -155,6 +163,17 @@ function GanttPageContent() {
       setIsLoading(false)
     }
   }, [searchParams])
+
+  // Load saved field mapper configuration on mount
+  useEffect(() => {
+    const savedMappings = fieldMapperStorage.loadMappings()
+    const savedColorRules = fieldMapperStorage.loadColorRules()
+    const savedTextTemplates = fieldMapperStorage.loadTextTemplates()
+
+    if (savedMappings.length > 0) setFieldMappings(savedMappings)
+    if (savedColorRules.length > 0) setColorRules(savedColorRules)
+    if (savedTextTemplates.length > 0) setTextTemplates(savedTextTemplates)
+  }, [])
 
   // Validate and sanitize task data
   const validateTask = useCallback((task: Task): { valid: boolean; reason?: string } => {
@@ -614,6 +633,47 @@ function GanttPageContent() {
     }
   }
 
+  // Handle field mapper configuration save
+  const handleSaveFieldMapper = () => {
+    setSaveStatus('saving')
+
+    try {
+      // Save each configuration type
+      const mappingsSaved = fieldMapperStorage.saveMappings(fieldMappings)
+      const colorRulesSaved = fieldMapperStorage.saveColorRules(colorRules)
+      const templatesSaved = fieldMapperStorage.saveTextTemplates(textTemplates)
+
+      if (mappingsSaved && colorRulesSaved && templatesSaved) {
+        setSaveStatus('saved')
+
+        // Reset status after 2 seconds
+        setTimeout(() => {
+          setSaveStatus('idle')
+          setShowDataMapper(false)
+        }, 1500)
+      } else {
+        throw new Error('Failed to save configuration')
+      }
+    } catch (error) {
+      console.error('Error saving field mapper configuration:', error)
+      alert('Failed to save configuration. Please try again.')
+      setSaveStatus('idle')
+    }
+  }
+
+  // Handle field mapper changes
+  const handleMappingChange = (mappings: FieldMapping[]) => {
+    setFieldMappings(mappings)
+  }
+
+  const handleColorRulesChange = (rules: ColorRule[]) => {
+    setColorRules(rules)
+  }
+
+  const handleTextTemplatesChange = (templates: TextTemplate[]) => {
+    setTextTemplates(templates)
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -708,11 +768,16 @@ function GanttPageContent() {
             <div className="flex gap-2">
               <button
                 onClick={() => setShowDataMapper(true)}
-                className="flex items-center gap-2 px-4 py-2 border rounded hover:bg-accent transition-colors"
+                className="relative flex items-center gap-2 px-4 py-2 border rounded hover:bg-accent transition-colors"
                 title="Configure Field Mapping"
               >
                 <Settings className="w-4 h-4" />
                 Field Mapper
+                {fieldMappings.length > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-green-500 text-[10px] font-bold text-white">
+                    {fieldMappings.length}
+                  </span>
+                )}
               </button>
               <GanttCreateMarkerTrigger />
               <button
@@ -800,34 +865,49 @@ function GanttPageContent() {
                 <DataFieldMapper
                   sourceFields={DEMO_SOURCE_FIELDS}
                   sourceData={DEMO_SOURCE_DATA}
-                  onMappingChange={(mappings: FieldMapping[]) => {
-                    console.log('Field mappings updated:', mappings)
-                  }}
-                  onColorRulesChange={(rules: ColorRule[]) => {
-                    console.log('Color rules updated:', rules)
-                  }}
-                  onTextTemplatesChange={(templates: TextTemplate[]) => {
-                    console.log('Text templates updated:', templates)
-                  }}
+                  onMappingChange={handleMappingChange}
+                  onColorRulesChange={handleColorRulesChange}
+                  onTextTemplatesChange={handleTextTemplatesChange}
                 />
               </div>
 
               {/* Modal Footer */}
               <div className="flex items-center justify-end gap-3 p-6 border-t bg-muted/50">
+                {fieldMappings.length > 0 && (
+                  <div className="mr-auto text-sm text-muted-foreground">
+                    {fieldMappings.length} field mapping(s) configured
+                  </div>
+                )}
                 <button
                   onClick={() => setShowDataMapper(false)}
                   className="px-4 py-2 border rounded-lg hover:bg-accent transition-colors"
+                  disabled={saveStatus === 'saving'}
                 >
                   Close
                 </button>
                 <button
-                  onClick={() => {
-                    setShowDataMapper(false)
-                    alert('In production, this would save your mapping configuration.')
-                  }}
-                  className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity"
+                  onClick={handleSaveFieldMapper}
+                  disabled={saveStatus === 'saving' || saveStatus === 'saved'}
+                  className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Save Configuration
+                  {saveStatus === 'saving' && (
+                    <>
+                      <Save className="w-4 h-4 animate-pulse" />
+                      Saving...
+                    </>
+                  )}
+                  {saveStatus === 'saved' && (
+                    <>
+                      <CheckCircle2 className="w-4 h-4" />
+                      Saved!
+                    </>
+                  )}
+                  {saveStatus === 'idle' && (
+                    <>
+                      <Save className="w-4 h-4" />
+                      Save Configuration
+                    </>
+                  )}
                 </button>
               </div>
             </div>
@@ -840,14 +920,16 @@ function GanttPageContent() {
 
 export default function GanttPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="text-lg">Loading Gantt chart...</div>
-        </div>
-      }
-    >
-      <GanttPageContent />
-    </Suspense>
+    <ErrorBoundary>
+      <Suspense
+        fallback={
+          <div className="flex items-center justify-center min-h-screen">
+            <div className="text-lg">Loading Gantt chart...</div>
+          </div>
+        }
+      >
+        <GanttPageContent />
+      </Suspense>
+    </ErrorBoundary>
   )
 }
