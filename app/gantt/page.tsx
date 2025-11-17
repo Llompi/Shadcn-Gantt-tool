@@ -35,12 +35,14 @@ function GanttContent({
   onTaskUpdate,
   onTaskDelete,
   onTasksImport,
+  onProcessedTasksChange,
 }: {
   tasks: GanttTask[]
   statuses: TaskStatus[]
   onTaskUpdate: (taskId: string, updates: Partial<Task>) => Promise<void>
   onTaskDelete: (taskId: string) => Promise<void>
   onTasksImport: (tasks: Partial<Task>[]) => Promise<void>
+  onProcessedTasksChange?: (tasks: Task[]) => void
 }) {
   const { viewStart, viewEnd, timescale } = useGantt()
   const tableRef = useRef<HTMLDivElement>(null)
@@ -68,6 +70,7 @@ function GanttContent({
               onTaskUpdate={onTaskUpdate}
               onTaskDelete={onTaskDelete}
               onTasksImport={onTasksImport}
+              onProcessedTasksChange={onProcessedTasksChange}
               viewStart={viewStart}
               viewEnd={viewEnd}
               timescale={timescale}
@@ -158,6 +161,14 @@ function GanttPageContent() {
 
   // Edit modal state
   const [editingTask, setEditingTask] = useState<GanttTask | null>(null)
+
+  // Filtered tasks state (for syncing table filters with Gantt)
+  const [filteredTasks, setFilteredTasks] = useState<GanttTask[]>([])
+
+  // Initialize filtered tasks when tasks load
+  useEffect(() => {
+    setFilteredTasks(tasks)
+  }, [tasks])
 
   // Initialize client mode if needed
   useEffect(() => {
@@ -708,7 +719,7 @@ function GanttPageContent() {
 
   return (
     <GanttProvider
-      tasks={tasks}
+      tasks={filteredTasks.length > 0 ? filteredTasks : tasks}
       onTaskMove={handleTaskMove}
       onTaskCreate={handleTaskCreate}
       onTaskClick={handleTaskClick}
@@ -815,6 +826,7 @@ function GanttPageContent() {
               onTaskUpdate={handleTaskUpdate}
               onTaskDelete={handleTaskDelete}
               onTasksImport={handleTasksImport}
+              onProcessedTasksChange={setFilteredTasks}
             />
           )}
 

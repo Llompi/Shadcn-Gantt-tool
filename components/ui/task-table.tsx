@@ -1,8 +1,8 @@
 "use client"
 
-import React, { useState, useRef, useMemo } from "react"
+import React, { useState, useRef, useMemo, useEffect } from "react"
 import { Task, TaskStatus } from "@/types/task"
-import { Download, Upload, Trash2, GripVertical } from "lucide-react"
+import { Download, Upload, Trash2, GripVertical, Eye, EyeOff, ChevronDown } from "lucide-react"
 import * as XLSX from "xlsx"
 import { TableToolbar, SortConfig, FilterConfig, GroupConfig } from "@/components/table-toolbar"
 
@@ -14,6 +14,7 @@ interface TaskTableProps {
   onTaskUpdate: (taskId: string, updates: Partial<Task>) => Promise<void>
   onTaskDelete?: (taskId: string) => Promise<void>
   onTasksImport: (tasks: Partial<Task>[]) => Promise<void>
+  onProcessedTasksChange?: (tasks: Task[]) => void
   viewStart?: Date
   viewEnd?: Date
   timescale?: TimescaleType
@@ -25,6 +26,7 @@ export function TaskTable({
   onTaskUpdate,
   onTaskDelete,
   onTasksImport,
+  onProcessedTasksChange,
   viewStart,
   viewEnd,
   timescale = "day",
@@ -37,6 +39,18 @@ export function TaskTable({
   const [sortConfig, setSortConfig] = useState<SortConfig | null>(null)
   const [filterConfigs, setFilterConfigs] = useState<FilterConfig[]>([])
   const [groupConfig, setGroupConfig] = useState<GroupConfig | null>(null)
+
+  // Column visibility state
+  const [columnVisibility, setColumnVisibility] = useState({
+    name: true,
+    start: true,
+    end: true,
+    status: true,
+    owner: true,
+    group: true,
+    progress: true,
+  })
+  const [showColumnMenu, setShowColumnMenu] = useState(false)
 
   // Available fields for filtering/sorting/grouping
   const availableFields = [
@@ -164,6 +178,13 @@ export function TaskTable({
 
     return groups
   }, [processedTasks, groupConfig])
+
+  // Notify parent when processed tasks change
+  useEffect(() => {
+    if (onProcessedTasksChange) {
+      onProcessedTasksChange(processedTasks)
+    }
+  }, [processedTasks, onProcessedTasksChange])
 
   // Define column order for navigation
   const columns = ['name', 'start', 'end', 'status', 'owner', 'group', 'progress']
@@ -915,13 +936,47 @@ export function TaskTable({
           onChange={handleFileImport}
           className="hidden"
         />
+
+        {/* Column Visibility Dropdown */}
+        <div className="relative ml-auto">
+          <button
+            onClick={() => setShowColumnMenu(!showColumnMenu)}
+            className="flex items-center gap-1 px-3 py-1.5 text-sm border rounded hover:bg-accent transition-colors"
+            title="Show/Hide Columns"
+          >
+            <Eye className="h-4 w-4" />
+            Columns
+            <ChevronDown className="h-3 w-3" />
+          </button>
+
+          {showColumnMenu && (
+            <div className="absolute right-0 top-full mt-1 w-48 bg-background border rounded-lg shadow-lg z-20 p-2">
+              <div className="text-xs font-semibold text-muted-foreground mb-2 px-2">Show/Hide Columns</div>
+              {Object.entries(columnVisibility).map(([col, visible]) => (
+                <label
+                  key={col}
+                  className="flex items-center gap-2 px-2 py-1.5 hover:bg-accent rounded cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    checked={visible}
+                    onChange={(e) => setColumnVisibility(prev => ({ ...prev, [col]: e.target.checked }))}
+                    className="rounded border-gray-300"
+                  />
+                  <span className="text-sm capitalize">{col === 'start' ? 'Start Date' : col === 'end' ? 'End Date' : col}</span>
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Table */}
       <div className="flex-1 overflow-auto">
         <table className="w-full text-sm">
-          <thead className="sticky top-0 bg-muted z-10">
-            <tr>
+          <thead className="sticky top-0 bg-muted z-10" style={{ height: '80px' }}>
+            <tr style={{ height: '80px' }}>
+              {columnVisibility.name && (
               <th className="px-2 py-2 text-left font-semibold border-b relative group" style={{ width: columnWidths.name }}>
                 <div className="flex items-center justify-between">
                   <span>Name</span>
@@ -933,6 +988,8 @@ export function TaskTable({
                   </div>
                 </div>
               </th>
+              )}
+              {columnVisibility.start && (
               <th className="px-2 py-2 text-left font-semibold border-b relative group" style={{ width: columnWidths.start }}>
                 <div className="flex items-center justify-between">
                   <span>Start</span>
@@ -944,6 +1001,8 @@ export function TaskTable({
                   </div>
                 </div>
               </th>
+              )}
+              {columnVisibility.end && (
               <th className="px-2 py-2 text-left font-semibold border-b relative group" style={{ width: columnWidths.end }}>
                 <div className="flex items-center justify-between">
                   <span>End</span>
@@ -955,6 +1014,8 @@ export function TaskTable({
                   </div>
                 </div>
               </th>
+              )}
+              {columnVisibility.status && (
               <th className="px-2 py-2 text-left font-semibold border-b relative group" style={{ width: columnWidths.status }}>
                 <div className="flex items-center justify-between">
                   <span>Status</span>
@@ -966,6 +1027,8 @@ export function TaskTable({
                   </div>
                 </div>
               </th>
+              )}
+              {columnVisibility.owner && (
               <th className="px-2 py-2 text-left font-semibold border-b relative group" style={{ width: columnWidths.owner }}>
                 <div className="flex items-center justify-between">
                   <span>Owner</span>
@@ -977,6 +1040,8 @@ export function TaskTable({
                   </div>
                 </div>
               </th>
+              )}
+              {columnVisibility.group && (
               <th className="px-2 py-2 text-left font-semibold border-b relative group" style={{ width: columnWidths.group }}>
                 <div className="flex items-center justify-between">
                   <span>Group</span>
@@ -988,6 +1053,8 @@ export function TaskTable({
                   </div>
                 </div>
               </th>
+              )}
+              {columnVisibility.progress && (
               <th className="px-2 py-2 text-left font-semibold border-b relative group" style={{ width: columnWidths.progress }}>
                 <div className="flex items-center justify-between">
                   <span>Progress</span>
@@ -999,6 +1066,7 @@ export function TaskTable({
                   </div>
                 </div>
               </th>
+              )}
               {onTaskDelete && (
                 <th className="px-2 py-2 text-left font-semibold border-b w-10"></th>
               )}
@@ -1020,6 +1088,7 @@ export function TaskTable({
                 {/* Tasks in this group */}
                 {groupTasks.map((task) => (
               <tr key={task.id} className="border-b hover:bg-muted/50" style={{ height: '48px' }}>
+                {columnVisibility.name && (
                 <td className="px-2 py-1.5 align-middle">
                   {editingCell?.taskId === task.id && editingCell.field === "name" ? (
                     <input
@@ -1039,6 +1108,8 @@ export function TaskTable({
                     </div>
                   )}
                 </td>
+                )}
+                {columnVisibility.start && (
                 <td className="px-2 py-1.5 align-middle">
                   {editingCell?.taskId === task.id && editingCell.field === "startAt" ? (
                     <input
@@ -1058,6 +1129,8 @@ export function TaskTable({
                     </div>
                   )}
                 </td>
+                )}
+                {columnVisibility.end && (
                 <td className="px-2 py-1.5 align-middle">
                   {editingCell?.taskId === task.id && editingCell.field === "endAt" ? (
                     <input
@@ -1077,6 +1150,8 @@ export function TaskTable({
                     </div>
                   )}
                 </td>
+                )}
+                {columnVisibility.status && (
                 <td className="px-2 py-1.5 align-middle">
                   {editingCell?.taskId === task.id && editingCell.field === "status" ? (
                     <select
@@ -1118,6 +1193,8 @@ export function TaskTable({
                     </div>
                   )}
                 </td>
+                )}
+                {columnVisibility.owner && (
                 <td className="px-2 py-1.5 align-middle">
                   {editingCell?.taskId === task.id && editingCell.field === "owner" ? (
                     <input
@@ -1137,6 +1214,8 @@ export function TaskTable({
                     </div>
                   )}
                 </td>
+                )}
+                {columnVisibility.group && (
                 <td className="px-2 py-1.5 align-middle">
                   {editingCell?.taskId === task.id && editingCell.field === "group" ? (
                     <input
@@ -1156,6 +1235,8 @@ export function TaskTable({
                     </div>
                   )}
                 </td>
+                )}
+                {columnVisibility.progress && (
                 <td className="px-2 py-1.5 align-middle">
                   {editingCell?.taskId === task.id && editingCell.field === "progress" ? (
                     <input
@@ -1177,6 +1258,7 @@ export function TaskTable({
                     </div>
                   )}
                 </td>
+                )}
                 {onTaskDelete && (
                   <td className="px-2 py-1.5 align-middle">
                     <button
