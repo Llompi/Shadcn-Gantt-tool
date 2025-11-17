@@ -189,7 +189,7 @@ export function TableToolbar({
 
           {filterConfigs.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              No filters applied. Click "Add filter" to start.
+              No filters applied. Click &quot;Add filter&quot; to start.
             </p>
           ) : (
             <div className="space-y-2">
@@ -211,7 +211,7 @@ export function TableToolbar({
 
                     <select
                       value={filter.operator}
-                      onChange={(e) => handleUpdateFilter(index, { operator: e.target.value as any })}
+                      onChange={(e) => handleUpdateFilter(index, { operator: e.target.value as FilterConfig['operator'] })}
                       className="px-2 py-1.5 border rounded text-sm"
                     >
                       <option value="equals">equals</option>

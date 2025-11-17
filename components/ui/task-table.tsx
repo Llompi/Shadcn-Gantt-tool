@@ -116,8 +116,8 @@ export function TaskTable({
 
         // Handle status object
         if (sortConfig.field === 'status' && aValue && typeof aValue === 'object' && 'name' in aValue) {
-          aValue = aValue.name as any
-          bValue = (bValue && typeof bValue === 'object' && 'name' in bValue) ? bValue.name as any : ''
+          aValue = aValue.name as string
+          bValue = (bValue && typeof bValue === 'object' && 'name' in bValue) ? bValue.name as string : ''
         }
 
         // Handle null/undefined
@@ -152,7 +152,7 @@ export function TaskTable({
 
       // Handle status object
       if (groupConfig.field === 'status' && groupKey && typeof groupKey === 'object' && 'name' in groupKey) {
-        groupKey = groupKey.name as any
+        groupKey = groupKey.name as string
       }
 
       const key = groupKey ? String(groupKey) : 'Ungrouped'
