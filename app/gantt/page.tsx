@@ -2,6 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useState, useRef } from "react"
 import { useSearchParams } from "next/navigation"
+import dynamic from "next/dynamic"
 import {
   GanttProvider,
   GanttHeader,
@@ -20,7 +21,12 @@ import { GripVertical, Settings, X, Save, CheckCircle2 } from "lucide-react"
 import { DataFieldMapper, FieldMapping, ColorRule, TextTemplate } from "@/components/data-field-mapper"
 import { fieldMapperStorage } from "@/lib/storage/field-mapper-storage"
 import { ErrorBoundary } from "@/components/error-boundary"
-import { TaskEditModal } from "@/components/task-edit-modal"
+
+// Dynamically import TaskEditModal to avoid SSR issues with createPortal
+const TaskEditModal = dynamic(
+  () => import("@/components/task-edit-modal").then((mod) => mod.TaskEditModal),
+  { ssr: false }
+)
 
 // Inner component that can access Gantt context
 function GanttContent({
