@@ -20,6 +20,7 @@ import { GripVertical, Settings, X, Save, CheckCircle2 } from "lucide-react"
 import { DataFieldMapper, FieldMapping, ColorRule, TextTemplate } from "@/components/data-field-mapper"
 import { fieldMapperStorage } from "@/lib/storage/field-mapper-storage"
 import { ErrorBoundary } from "@/components/error-boundary"
+import { TaskEditModal } from "@/components/task-edit-modal"
 
 // Inner component that can access Gantt context
 function GanttContent({
@@ -148,6 +149,9 @@ function GanttPageContent() {
   const [colorRules, setColorRules] = useState<ColorRule[]>([])
   const [textTemplates, setTextTemplates] = useState<TextTemplate[]>([])
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
+
+  // Edit modal state
+  const [editingTask, setEditingTask] = useState<GanttTask | null>(null)
 
   // Initialize client mode if needed
   useEffect(() => {
@@ -702,6 +706,8 @@ function GanttPageContent() {
       onTaskMove={handleTaskMove}
       onTaskCreate={handleTaskCreate}
       onTaskClick={handleTaskClick}
+      onTaskEditRequest={setEditingTask}
+      onTaskDelete={handleTaskDelete}
     >
       <div className="min-h-screen bg-background">
         <div className="container mx-auto py-8">
@@ -912,6 +918,16 @@ function GanttPageContent() {
               </div>
             </div>
           </div>
+        )}
+
+        {/* Task Edit Modal */}
+        {editingTask && (
+          <TaskEditModal
+            task={editingTask}
+            statuses={statuses}
+            onSave={handleTaskUpdate}
+            onClose={() => setEditingTask(null)}
+          />
         )}
       </div>
     </GanttProvider>

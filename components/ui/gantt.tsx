@@ -2,7 +2,8 @@
 
 import * as React from "react"
 import { cn } from "@/lib/utils"
-import { ChevronLeft, ChevronRight, Plus, Diamond } from "lucide-react"
+import { ChevronLeft, ChevronRight, Plus, Diamond, Edit, Trash2 } from "lucide-react"
+import { ContextMenu } from "@/components/context-menu"
 
 // Types
 export type TimescaleType = "day" | "week" | "month" | "quarter"
@@ -30,6 +31,8 @@ interface GanttContextValue {
   onTaskMove?: (taskId: string, startAt: Date, endAt: Date) => Promise<void>
   onTaskCreate?: (date: Date) => Promise<void>
   onTaskClick?: (task: GanttTask) => void
+  onTaskEditRequest?: (task: GanttTask) => void
+  onTaskDelete?: (taskId: string) => Promise<void>
   setViewRange: (start: Date, end: Date) => void
   setTimescale: (timescale: TimescaleType) => void
 }
@@ -90,6 +93,8 @@ interface GanttProviderProps {
   onTaskMove?: (taskId: string, startAt: Date, endAt: Date) => Promise<void>
   onTaskCreate?: (date: Date) => Promise<void>
   onTaskClick?: (task: GanttTask) => void
+  onTaskEditRequest?: (task: GanttTask) => void
+  onTaskDelete?: (taskId: string) => Promise<void>
   defaultViewStart?: Date
   defaultViewEnd?: Date
   defaultTimescale?: TimescaleType
@@ -101,6 +106,8 @@ export function GanttProvider({
   onTaskMove,
   onTaskCreate,
   onTaskClick,
+  onTaskEditRequest,
+  onTaskDelete,
   defaultViewStart,
   defaultViewEnd,
   defaultTimescale = "day",
@@ -174,6 +181,8 @@ export function GanttProvider({
         onTaskMove,
         onTaskCreate,
         onTaskClick,
+        onTaskEditRequest,
+        onTaskDelete,
         setViewRange,
         setTimescale,
       }}
@@ -249,20 +258,22 @@ export function GanttHeader({ className }: { className?: string }) {
 
     // Force scroll to today line after a brief delay to ensure render
     setTimeout(() => {
-      const container = document.getElementById('gantt-timeline-container')
-      if (container) {
+      // Find the scrollable container - it's the parent with class 'gantt-scrollbar'
+      const scrollableContainer = document.querySelector('.gantt-scrollbar')
+      if (scrollableContainer) {
         // Calculate where "today" is in pixels
-        const totalDays = (newEnd.getTime() - newStart.getTime()) / (24 * 60 * 60 * 1000)
         const daysFromStart = (today.getTime() - newStart.getTime()) / (24 * 60 * 60 * 1000)
         const dayWidth = timescale === 'day' ? 80 : timescale === 'week' ? 40 : timescale === 'month' ? 20 : 10
         const todayPositionPx = daysFromStart * dayWidth
 
         // Scroll to center today in viewport
-        const scrollPosition = todayPositionPx - container.clientWidth / 2
-        container.scrollLeft = Math.max(0, scrollPosition)
-        console.log('[goToToday] Scrolled to position:', scrollPosition)
+        const scrollPosition = todayPositionPx - scrollableContainer.clientWidth / 2
+        scrollableContainer.scrollLeft = Math.max(0, scrollPosition)
+        console.log('[goToToday] Scrolled to position:', scrollPosition, 'dayWidth:', dayWidth, 'daysFromStart:', daysFromStart)
+      } else {
+        console.warn('[goToToday] Could not find scrollable container')
       }
-    }, 100)
+    }, 150)
   }
 
   return (
@@ -528,12 +539,13 @@ function getWeekNumber(date: Date): number {
 
 // Feature Item (Task Bar)
 export function GanttFeatureItem({ task, dayWidth }: { task: GanttTask; dayWidth: number }) {
-  const { viewStart, viewEnd, onTaskMove, onTaskClick } = useGantt()
+  const { viewStart, viewEnd, onTaskMove, onTaskClick, onTaskEditRequest, onTaskDelete } = useGantt()
   const [isDragging, setIsDragging] = React.useState(false)
   const [isResizing, setIsResizing] = React.useState<"start" | "end" | null>(null)
   const [dragOffset, setDragOffset] = React.useState({ start: 0, end: 0 })
   const [isHovered, setIsHovered] = React.useState(false)
   const [previewPosition, setPreviewPosition] = React.useState<{ left: number; width: number } | null>(null)
+  const [contextMenu, setContextMenu] = React.useState<{ x: number; y: number } | null>(null)
 
   const totalDays = (viewEnd.getTime() - viewStart.getTime()) / (24 * 60 * 60 * 1000)
   const startOffset = (task.startAt.getTime() - viewStart.getTime()) / (24 * 60 * 60 * 1000)
@@ -559,6 +571,12 @@ export function GanttFeatureItem({ task, dayWidth }: { task: GanttTask; dayWidth
     } else {
       setIsResizing("end")
     }
+  }
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setContextMenu({ x: e.clientX, y: e.clientY })
   }
 
   React.useEffect(() => {
@@ -640,22 +658,24 @@ export function GanttFeatureItem({ task, dayWidth }: { task: GanttTask; dayWidth
   // Render milestone icon for tasks with same start and end date
   if (isMilestone) {
     return (
-      <div
-        className={cn(
-          "absolute cursor-pointer flex items-center justify-center transition-all duration-200 ease-out",
-          isHovered && "scale-110 drop-shadow-lg"
-        )}
-        style={{
-          left: `${leftPx}px`,
-          opacity: isDragging ? 0.7 : 1,
-          transform: 'translateX(-50%)',
-        }}
-        onMouseDown={(e) => handleMouseDown(e, "move")}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-        onClick={() => onTaskClick?.(task)}
-        title={`${task.name}\n${task.startAt.toLocaleDateString()}`}
-      >
+      <>
+        <div
+          className={cn(
+            "absolute cursor-pointer flex items-center justify-center transition-all duration-200 ease-out",
+            isHovered && "scale-110 drop-shadow-lg"
+          )}
+          style={{
+            left: `${leftPx}px`,
+            opacity: isDragging ? 0.7 : 1,
+            transform: 'translateX(-50%)',
+          }}
+          onMouseDown={(e) => handleMouseDown(e, "move")}
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
+          onClick={() => onTaskClick?.(task)}
+          onContextMenu={handleContextMenu}
+          title={`${task.name}\n${task.startAt.toLocaleDateString()}`}
+        >
         <Diamond
           className={cn(
             "w-8 h-8 transition-all duration-200",
@@ -679,6 +699,33 @@ export function GanttFeatureItem({ task, dayWidth }: { task: GanttTask; dayWidth
           {task.name}
         </span>
       </div>
+
+      {/* Context menu */}
+      {contextMenu && (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          items={[
+            {
+              label: 'Edit Task',
+              icon: <Edit className="w-4 h-4" />,
+              onClick: () => onTaskEditRequest?.(task),
+            },
+            {
+              label: 'Delete Task',
+              icon: <Trash2 className="w-4 h-4" />,
+              onClick: async () => {
+                if (onTaskDelete && confirm(`Delete task "${task.name}"?`)) {
+                  await onTaskDelete(task.id)
+                }
+              },
+              danger: true,
+            },
+          ]}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
+      </>
     )
   }
 
@@ -688,7 +735,7 @@ export function GanttFeatureItem({ task, dayWidth }: { task: GanttTask; dayWidth
       <div
         className={cn(
           "absolute h-8 rounded cursor-move transition-all duration-200 ease-out",
-          isHovered && !isDragging && !isResizing && "shadow-lg ring-2 ring-white/30 scale-105 -translate-y-0.5",
+          isHovered && !isDragging && !isResizing && "shadow-lg ring-2 ring-white/30 scale-105",
           (isDragging || isResizing) && "opacity-30"
         )}
         style={{
@@ -700,6 +747,7 @@ export function GanttFeatureItem({ task, dayWidth }: { task: GanttTask; dayWidth
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         onClick={() => onTaskClick?.(task)}
+        onContextMenu={handleContextMenu}
         title={`${task.name}\n${task.startAt.toLocaleDateString()} - ${task.endAt.toLocaleDateString()}`}
       >
         {/* Resize handle - start */}
@@ -757,6 +805,32 @@ export function GanttFeatureItem({ task, dayWidth }: { task: GanttTask; dayWidth
             {isResizing === 'end' && 'Resize end'}
           </div>
         </div>
+      )}
+
+      {/* Context menu */}
+      {contextMenu && (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          items={[
+            {
+              label: 'Edit Task',
+              icon: <Edit className="w-4 h-4" />,
+              onClick: () => onTaskEditRequest?.(task),
+            },
+            {
+              label: 'Delete Task',
+              icon: <Trash2 className="w-4 h-4" />,
+              onClick: async () => {
+                if (onTaskDelete && confirm(`Delete task "${task.name}"?`)) {
+                  await onTaskDelete(task.id)
+                }
+              },
+              danger: true,
+            },
+          ]}
+          onClose={() => setContextMenu(null)}
+        />
       )}
     </>
   )

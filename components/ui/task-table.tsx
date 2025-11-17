@@ -1,9 +1,10 @@
 "use client"
 
-import React, { useState, useRef } from "react"
+import React, { useState, useRef, useMemo } from "react"
 import { Task, TaskStatus } from "@/types/task"
 import { Download, Upload, Trash2, GripVertical } from "lucide-react"
 import * as XLSX from "xlsx"
+import { TableToolbar, SortConfig, FilterConfig, GroupConfig } from "@/components/table-toolbar"
 
 export type TimescaleType = "day" | "week" | "month" | "quarter"
 
@@ -30,6 +31,139 @@ export function TaskTable({
 }: TaskTableProps) {
   const [editingCell, setEditingCell] = useState<{ taskId: string; field: string } | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Table toolbar state
+  const [searchQuery, setSearchQuery] = useState('')
+  const [sortConfig, setSortConfig] = useState<SortConfig | null>(null)
+  const [filterConfigs, setFilterConfigs] = useState<FilterConfig[]>([])
+  const [groupConfig, setGroupConfig] = useState<GroupConfig | null>(null)
+
+  // Available fields for filtering/sorting/grouping
+  const availableFields = [
+    { key: 'name', label: 'Name', type: 'string' as const },
+    { key: 'owner', label: 'Owner', type: 'string' as const },
+    { key: 'group', label: 'Group', type: 'string' as const },
+    { key: 'status', label: 'Status', type: 'string' as const },
+    { key: 'progress', label: 'Progress', type: 'number' as const },
+    { key: 'startAt', label: 'Start Date', type: 'date' as const },
+    { key: 'endAt', label: 'End Date', type: 'date' as const },
+  ]
+
+  // Apply search, filter, sort, and group to tasks
+  const processedTasks = useMemo(() => {
+    let result = [...tasks]
+
+    // Apply search
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase()
+      result = result.filter(task =>
+        task.name.toLowerCase().includes(query) ||
+        task.owner?.toLowerCase().includes(query) ||
+        task.group?.toLowerCase().includes(query) ||
+        task.status?.name.toLowerCase().includes(query)
+      )
+    }
+
+    // Apply filters
+    filterConfigs.forEach(filter => {
+      if (!filter.value) return
+
+      result = result.filter(task => {
+        const value = task[filter.field as keyof Task]
+        const filterValue = filter.value
+
+        if (value === undefined || value === null) return false
+
+        switch (filter.operator) {
+          case 'equals':
+            if (typeof value === 'object' && 'name' in value) {
+              return String(value.name).toLowerCase() === String(filterValue).toLowerCase()
+            }
+            return String(value).toLowerCase() === String(filterValue).toLowerCase()
+
+          case 'contains':
+            return String(value).toLowerCase().includes(String(filterValue).toLowerCase())
+
+          case 'greaterThan':
+            if (typeof value === 'number') {
+              return value > Number(filterValue)
+            }
+            if (value instanceof Date) {
+              return value > new Date(String(filterValue))
+            }
+            return false
+
+          case 'lessThan':
+            if (typeof value === 'number') {
+              return value < Number(filterValue)
+            }
+            if (value instanceof Date) {
+              return value < new Date(String(filterValue))
+            }
+            return false
+
+          default:
+            return true
+        }
+      })
+    })
+
+    // Apply sort
+    if (sortConfig) {
+      result.sort((a, b) => {
+        let aValue = a[sortConfig.field as keyof Task]
+        let bValue = b[sortConfig.field as keyof Task]
+
+        // Handle status object
+        if (sortConfig.field === 'status' && aValue && typeof aValue === 'object' && 'name' in aValue) {
+          aValue = aValue.name as any
+          bValue = (bValue && typeof bValue === 'object' && 'name' in bValue) ? bValue.name as any : ''
+        }
+
+        // Handle null/undefined
+        if (aValue === null || aValue === undefined) return 1
+        if (bValue === null || bValue === undefined) return -1
+
+        // Compare values
+        let comparison = 0
+        if (aValue instanceof Date && bValue instanceof Date) {
+          comparison = aValue.getTime() - bValue.getTime()
+        } else if (typeof aValue === 'number' && typeof bValue === 'number') {
+          comparison = aValue - bValue
+        } else {
+          comparison = String(aValue).localeCompare(String(bValue))
+        }
+
+        return sortConfig.direction === 'asc' ? comparison : -comparison
+      })
+    }
+
+    return result
+  }, [tasks, searchQuery, filterConfigs, sortConfig])
+
+  // Group tasks if grouping is enabled
+  const groupedTasks = useMemo(() => {
+    if (!groupConfig) return { ungrouped: processedTasks }
+
+    const groups: Record<string, Task[]> = {}
+
+    processedTasks.forEach(task => {
+      let groupKey = task[groupConfig.field as keyof Task]
+
+      // Handle status object
+      if (groupConfig.field === 'status' && groupKey && typeof groupKey === 'object' && 'name' in groupKey) {
+        groupKey = groupKey.name as any
+      }
+
+      const key = groupKey ? String(groupKey) : 'Ungrouped'
+      if (!groups[key]) {
+        groups[key] = []
+      }
+      groups[key].push(task)
+    })
+
+    return groups
+  }, [processedTasks, groupConfig])
 
   // Define column order for navigation
   const columns = ['name', 'start', 'end', 'status', 'owner', 'group', 'progress']
@@ -733,7 +867,22 @@ export function TaskTable({
 
   return (
     <div className="flex flex-col h-full">
-      {/* Toolbar */}
+      {/* Table Toolbar with Search, Filter, Sort, Group */}
+      <div className="p-3 border-b bg-background">
+        <TableToolbar
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          sortConfig={sortConfig}
+          onSortChange={setSortConfig}
+          filterConfigs={filterConfigs}
+          onFilterChange={setFilterConfigs}
+          groupConfig={groupConfig}
+          onGroupChange={setGroupConfig}
+          availableFields={availableFields}
+        />
+      </div>
+
+      {/* Export/Import Toolbar */}
       <div className="flex gap-2 p-2 border-b bg-muted/50">
         <button
           onClick={exportToCSV}
@@ -856,7 +1005,20 @@ export function TaskTable({
             </tr>
           </thead>
           <tbody>
-            {tasks.map((task) => (
+            {/* Render grouped or ungrouped tasks */}
+            {Object.entries(groupedTasks).map(([groupName, groupTasks]) => (
+              <React.Fragment key={groupName}>
+                {/* Group header if grouping is active */}
+                {groupConfig && Object.keys(groupedTasks).length > 1 && (
+                  <tr className="bg-muted/70">
+                    <td colSpan={onTaskDelete ? 8 : 7} className="px-2 py-2 font-semibold text-sm">
+                      {groupName} ({groupTasks.length})
+                    </td>
+                  </tr>
+                )}
+
+                {/* Tasks in this group */}
+                {groupTasks.map((task) => (
               <tr key={task.id} className="border-b hover:bg-muted/50" style={{ height: '48px' }}>
                 <td className="px-2 py-1.5 align-middle">
                   {editingCell?.taskId === task.id && editingCell.field === "name" ? (
@@ -1027,6 +1189,8 @@ export function TaskTable({
                   </td>
                 )}
               </tr>
+                ))}
+              </React.Fragment>
             ))}
           </tbody>
         </table>
