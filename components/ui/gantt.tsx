@@ -1095,7 +1095,8 @@ export function GanttFeatureList({ className }: { className?: string }) {
       onMouseLeave={handleMouseUp}
       style={{
         scrollBehavior: momentumFrameRef.current ? 'auto' : 'smooth',
-      }}
+        '--task-row-height': '48px',
+      } as React.CSSProperties}
     >
       <div style={{ minWidth: `${minWidthPx}px`, position: 'relative' }}>
         <TimelineGrid dayWidth={dayWidth} />
@@ -1125,7 +1126,7 @@ export function GanttFeatureList({ className }: { className?: string }) {
           ) : (
             <div>
               {tasks.map((task) => (
-                <div key={task.id} className="relative border-b" style={{ height: '48px' }}>
+                <div key={task.id} className="relative border-b" style={{ height: 'var(--task-row-height, 48px)' }}>
                   <div className="absolute inset-y-0 left-0 right-0">
                     <GanttFeatureItem task={task} dayWidth={dayWidth} />
                   </div>

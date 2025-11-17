@@ -887,7 +887,7 @@ export function TaskTable({
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full" style={{ '--task-row-height': '48px' } as React.CSSProperties}>
       {/* Table Toolbar with Search, Filter, Sort, Group */}
       <div className="p-3 border-b bg-background">
         <TableToolbar
@@ -1087,9 +1087,9 @@ export function TaskTable({
 
                 {/* Tasks in this group */}
                 {groupTasks.map((task) => (
-              <tr key={task.id} className="border-b hover:bg-muted/50" style={{ height: '48px' }}>
+              <tr key={task.id} className="border-b hover:bg-muted/50" style={{ height: 'var(--task-row-height, 48px)' }}>
                 {columnVisibility.name && (
-                <td className="px-2 py-1.5 align-middle">
+                <td className="px-2 align-middle" style={{ height: 'var(--task-row-height, 48px)' }}>
                   {editingCell?.taskId === task.id && editingCell.field === "name" ? (
                     <input
                       type="text"
@@ -1110,7 +1110,7 @@ export function TaskTable({
                 </td>
                 )}
                 {columnVisibility.start && (
-                <td className="px-2 py-1.5 align-middle">
+                <td className="px-2 align-middle" style={{ height: 'var(--task-row-height, 48px)' }}>
                   {editingCell?.taskId === task.id && editingCell.field === "startAt" ? (
                     <input
                       type="date"
@@ -1131,7 +1131,7 @@ export function TaskTable({
                 </td>
                 )}
                 {columnVisibility.end && (
-                <td className="px-2 py-1.5 align-middle">
+                <td className="px-2 align-middle" style={{ height: 'var(--task-row-height, 48px)' }}>
                   {editingCell?.taskId === task.id && editingCell.field === "endAt" ? (
                     <input
                       type="date"
@@ -1152,7 +1152,7 @@ export function TaskTable({
                 </td>
                 )}
                 {columnVisibility.status && (
-                <td className="px-2 py-1.5 align-middle">
+                <td className="px-2 align-middle" style={{ height: 'var(--task-row-height, 48px)' }}>
                   {editingCell?.taskId === task.id && editingCell.field === "status" ? (
                     <select
                       defaultValue={task.status?.id}
@@ -1195,7 +1195,7 @@ export function TaskTable({
                 </td>
                 )}
                 {columnVisibility.owner && (
-                <td className="px-2 py-1.5 align-middle">
+                <td className="px-2 align-middle" style={{ height: 'var(--task-row-height, 48px)' }}>
                   {editingCell?.taskId === task.id && editingCell.field === "owner" ? (
                     <input
                       type="text"
@@ -1216,7 +1216,7 @@ export function TaskTable({
                 </td>
                 )}
                 {columnVisibility.group && (
-                <td className="px-2 py-1.5 align-middle">
+                <td className="px-2 align-middle" style={{ height: 'var(--task-row-height, 48px)' }}>
                   {editingCell?.taskId === task.id && editingCell.field === "group" ? (
                     <input
                       type="text"
@@ -1237,7 +1237,7 @@ export function TaskTable({
                 </td>
                 )}
                 {columnVisibility.progress && (
-                <td className="px-2 py-1.5 align-middle">
+                <td className="px-2 align-middle" style={{ height: 'var(--task-row-height, 48px)' }}>
                   {editingCell?.taskId === task.id && editingCell.field === "progress" ? (
                     <input
                       type="number"
@@ -1260,7 +1260,7 @@ export function TaskTable({
                 </td>
                 )}
                 {onTaskDelete && (
-                  <td className="px-2 py-1.5 align-middle">
+                  <td className="px-2 align-middle" style={{ height: 'var(--task-row-height, 48px)' }}>
                     <button
                       onClick={() => handleDelete(task.id)}
                       className="p-1 hover:bg-red-100 hover:text-red-600 rounded transition-colors"
