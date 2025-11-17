@@ -206,6 +206,8 @@ export function GanttHeader({ className }: { className?: string }) {
     const today = new Date()
     today.setHours(0, 0, 0, 0) // Start of today
 
+    console.log('[goToToday] Navigating to today:', today.toISOString())
+
     // Calculate new range based on current timescale
     let newStart: Date
     let newEnd: Date
@@ -242,7 +244,25 @@ export function GanttHeader({ className }: { className?: string }) {
         newEnd = new Date(today.getTime() + halfRange)
     }
 
+    console.log('[goToToday] New range:', newStart.toISOString(), 'to', newEnd.toISOString())
     setViewRange(newStart, newEnd)
+
+    // Force scroll to today line after a brief delay to ensure render
+    setTimeout(() => {
+      const container = document.getElementById('gantt-timeline-container')
+      if (container) {
+        // Calculate where "today" is in pixels
+        const totalDays = (newEnd.getTime() - newStart.getTime()) / (24 * 60 * 60 * 1000)
+        const daysFromStart = (today.getTime() - newStart.getTime()) / (24 * 60 * 60 * 1000)
+        const dayWidth = timescale === 'day' ? 80 : timescale === 'week' ? 40 : timescale === 'month' ? 20 : 10
+        const todayPositionPx = daysFromStart * dayWidth
+
+        // Scroll to center today in viewport
+        const scrollPosition = todayPositionPx - container.clientWidth / 2
+        container.scrollLeft = Math.max(0, scrollPosition)
+        console.log('[goToToday] Scrolled to position:', scrollPosition)
+      }
+    }, 100)
   }
 
   return (
