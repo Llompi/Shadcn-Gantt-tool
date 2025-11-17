@@ -973,9 +973,9 @@ export function TaskTable({
 
       {/* Table */}
       <div className="flex-1 overflow-auto">
-        <table className="w-full text-sm">
+        <table className="w-full text-sm" style={{ borderCollapse: 'collapse', borderSpacing: 0 }}>
           <thead className="sticky top-0 bg-muted z-10" style={{ height: '80px' }}>
-            <tr style={{ height: '80px' }}>
+            <tr style={{ height: '80px', margin: 0, padding: 0 }}>
               {columnVisibility.name && (
               <th className="px-2 py-2 text-left font-semibold border-b relative group" style={{ width: columnWidths.name }}>
                 <div className="flex items-center justify-between">
@@ -1087,9 +1087,28 @@ export function TaskTable({
 
                 {/* Tasks in this group */}
                 {groupTasks.map((task) => (
-              <tr key={task.id} className="border-b hover:bg-muted/50" style={{ height: 'var(--task-row-height, 48px)' }}>
+              <tr
+                key={task.id}
+                className="border-b hover:bg-muted/50"
+                style={{
+                  height: 'var(--task-row-height, 48px)',
+                  minHeight: 'var(--task-row-height, 48px)',
+                  maxHeight: 'var(--task-row-height, 48px)',
+                  margin: 0,
+                  padding: 0,
+                  boxSizing: 'border-box'
+                }}
+              >
                 {columnVisibility.name && (
-                <td className="px-2 align-middle" style={{ height: 'var(--task-row-height, 48px)' }}>
+                <td className="px-2 align-middle" style={{
+                  height: 'var(--task-row-height, 48px)',
+                  minHeight: 'var(--task-row-height, 48px)',
+                  maxHeight: 'var(--task-row-height, 48px)',
+                  lineHeight: '1',
+                  overflow: 'hidden',
+                  boxSizing: 'border-box',
+                  padding: '0 0.5rem'
+                }}>
                   {editingCell?.taskId === task.id && editingCell.field === "name" ? (
                     <input
                       type="text"
@@ -1102,7 +1121,7 @@ export function TaskTable({
                   ) : (
                     <div
                       onClick={() => setEditingCell({ taskId: task.id, field: "name" })}
-                      className="min-h-[2rem] flex items-center cursor-text px-2 py-1 hover:bg-accent/30 rounded-md transition-colors"
+                      className="flex items-center cursor-text px-2 hover:bg-accent/30 rounded-md transition-colors h-full"
                     >
                       {task.name || <span className="text-muted-foreground text-xs">Click to edit</span>}
                     </div>
@@ -1110,7 +1129,15 @@ export function TaskTable({
                 </td>
                 )}
                 {columnVisibility.start && (
-                <td className="px-2 align-middle" style={{ height: 'var(--task-row-height, 48px)' }}>
+                <td className="px-2 align-middle" style={{
+                  height: 'var(--task-row-height, 48px)',
+                  minHeight: 'var(--task-row-height, 48px)',
+                  maxHeight: 'var(--task-row-height, 48px)',
+                  lineHeight: '1',
+                  overflow: 'hidden',
+                  boxSizing: 'border-box',
+                  padding: '0 0.5rem'
+                }}>
                   {editingCell?.taskId === task.id && editingCell.field === "startAt" ? (
                     <input
                       type="date"
@@ -1123,7 +1150,7 @@ export function TaskTable({
                   ) : (
                     <div
                       onClick={() => setEditingCell({ taskId: task.id, field: "startAt" })}
-                      className="min-h-[2rem] flex items-center cursor-text px-2 py-1 hover:bg-accent/30 rounded-md transition-colors"
+                      className="flex items-center cursor-text px-2 hover:bg-accent/30 rounded-md transition-colors h-full"
                     >
                       {formatDate(task.startAt) || <span className="text-muted-foreground text-xs">Click to edit</span>}
                     </div>
@@ -1131,7 +1158,15 @@ export function TaskTable({
                 </td>
                 )}
                 {columnVisibility.end && (
-                <td className="px-2 align-middle" style={{ height: 'var(--task-row-height, 48px)' }}>
+                <td className="px-2 align-middle" style={{
+                  height: 'var(--task-row-height, 48px)',
+                  minHeight: 'var(--task-row-height, 48px)',
+                  maxHeight: 'var(--task-row-height, 48px)',
+                  lineHeight: '1',
+                  overflow: 'hidden',
+                  boxSizing: 'border-box',
+                  padding: '0 0.5rem'
+                }}>
                   {editingCell?.taskId === task.id && editingCell.field === "endAt" ? (
                     <input
                       type="date"
@@ -1144,7 +1179,7 @@ export function TaskTable({
                   ) : (
                     <div
                       onClick={() => setEditingCell({ taskId: task.id, field: "endAt" })}
-                      className="min-h-[2rem] flex items-center cursor-text px-2 py-1 hover:bg-accent/30 rounded-md transition-colors"
+                      className="flex items-center cursor-text px-2 hover:bg-accent/30 rounded-md transition-colors h-full"
                     >
                       {formatDate(task.endAt) || <span className="text-muted-foreground text-xs">Click to edit</span>}
                     </div>
@@ -1152,7 +1187,15 @@ export function TaskTable({
                 </td>
                 )}
                 {columnVisibility.status && (
-                <td className="px-2 align-middle" style={{ height: 'var(--task-row-height, 48px)' }}>
+                <td className="px-2 align-middle" style={{
+                  height: 'var(--task-row-height, 48px)',
+                  minHeight: 'var(--task-row-height, 48px)',
+                  maxHeight: 'var(--task-row-height, 48px)',
+                  lineHeight: '1',
+                  overflow: 'hidden',
+                  boxSizing: 'border-box',
+                  padding: '0 0.5rem'
+                }}>
                   {editingCell?.taskId === task.id && editingCell.field === "status" ? (
                     <select
                       defaultValue={task.status?.id}
@@ -1177,7 +1220,7 @@ export function TaskTable({
                   ) : (
                     <div
                       onClick={() => setEditingCell({ taskId: task.id, field: "status" })}
-                      className="min-h-[2rem] flex items-center cursor-text px-2 py-1 hover:bg-accent/30 rounded-md transition-colors gap-1.5"
+                      className="flex items-center cursor-text px-2 hover:bg-accent/30 rounded-md transition-colors gap-1.5 h-full"
                     >
                       {task.status ? (
                         <>
@@ -1195,7 +1238,15 @@ export function TaskTable({
                 </td>
                 )}
                 {columnVisibility.owner && (
-                <td className="px-2 align-middle" style={{ height: 'var(--task-row-height, 48px)' }}>
+                <td className="px-2 align-middle" style={{
+                  height: 'var(--task-row-height, 48px)',
+                  minHeight: 'var(--task-row-height, 48px)',
+                  maxHeight: 'var(--task-row-height, 48px)',
+                  lineHeight: '1',
+                  overflow: 'hidden',
+                  boxSizing: 'border-box',
+                  padding: '0 0.5rem'
+                }}>
                   {editingCell?.taskId === task.id && editingCell.field === "owner" ? (
                     <input
                       type="text"
@@ -1208,7 +1259,7 @@ export function TaskTable({
                   ) : (
                     <div
                       onClick={() => setEditingCell({ taskId: task.id, field: "owner" })}
-                      className="min-h-[2rem] flex items-center cursor-text px-2 py-1 hover:bg-accent/30 rounded-md transition-colors"
+                      className="flex items-center cursor-text px-2 hover:bg-accent/30 rounded-md transition-colors h-full"
                     >
                       {task.owner || <span className="text-muted-foreground text-xs">Click to edit</span>}
                     </div>
@@ -1216,7 +1267,15 @@ export function TaskTable({
                 </td>
                 )}
                 {columnVisibility.group && (
-                <td className="px-2 align-middle" style={{ height: 'var(--task-row-height, 48px)' }}>
+                <td className="px-2 align-middle" style={{
+                  height: 'var(--task-row-height, 48px)',
+                  minHeight: 'var(--task-row-height, 48px)',
+                  maxHeight: 'var(--task-row-height, 48px)',
+                  lineHeight: '1',
+                  overflow: 'hidden',
+                  boxSizing: 'border-box',
+                  padding: '0 0.5rem'
+                }}>
                   {editingCell?.taskId === task.id && editingCell.field === "group" ? (
                     <input
                       type="text"
@@ -1229,7 +1288,7 @@ export function TaskTable({
                   ) : (
                     <div
                       onClick={() => setEditingCell({ taskId: task.id, field: "group" })}
-                      className="min-h-[2rem] flex items-center cursor-text px-2 py-1 hover:bg-accent/30 rounded-md transition-colors"
+                      className="flex items-center cursor-text px-2 hover:bg-accent/30 rounded-md transition-colors h-full"
                     >
                       {task.group || <span className="text-muted-foreground text-xs">Click to edit</span>}
                     </div>
@@ -1237,7 +1296,15 @@ export function TaskTable({
                 </td>
                 )}
                 {columnVisibility.progress && (
-                <td className="px-2 align-middle" style={{ height: 'var(--task-row-height, 48px)' }}>
+                <td className="px-2 align-middle" style={{
+                  height: 'var(--task-row-height, 48px)',
+                  minHeight: 'var(--task-row-height, 48px)',
+                  maxHeight: 'var(--task-row-height, 48px)',
+                  lineHeight: '1',
+                  overflow: 'hidden',
+                  boxSizing: 'border-box',
+                  padding: '0 0.5rem'
+                }}>
                   {editingCell?.taskId === task.id && editingCell.field === "progress" ? (
                     <input
                       type="number"
@@ -1252,7 +1319,7 @@ export function TaskTable({
                   ) : (
                     <div
                       onClick={() => setEditingCell({ taskId: task.id, field: "progress" })}
-                      className="min-h-[2rem] flex items-center cursor-text px-2 py-1 hover:bg-accent/30 rounded-md transition-colors"
+                      className="flex items-center cursor-text px-2 hover:bg-accent/30 rounded-md transition-colors h-full"
                     >
                       {task.progress !== undefined ? `${task.progress}%` : <span className="text-muted-foreground text-xs">Click to edit</span>}
                     </div>
@@ -1260,7 +1327,15 @@ export function TaskTable({
                 </td>
                 )}
                 {onTaskDelete && (
-                  <td className="px-2 align-middle" style={{ height: 'var(--task-row-height, 48px)' }}>
+                  <td className="px-2 align-middle" style={{
+                  height: 'var(--task-row-height, 48px)',
+                  minHeight: 'var(--task-row-height, 48px)',
+                  maxHeight: 'var(--task-row-height, 48px)',
+                  lineHeight: '1',
+                  overflow: 'hidden',
+                  boxSizing: 'border-box',
+                  padding: '0 0.5rem'
+                }}>
                     <button
                       onClick={() => handleDelete(task.id)}
                       className="p-1 hover:bg-red-100 hover:text-red-600 rounded transition-colors"
