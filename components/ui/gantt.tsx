@@ -488,8 +488,8 @@ function TimelineGrid({ className, dayWidth }: { className?: string; dayWidth: n
 
   return (
     <div className={cn("relative h-full", className)}>
-      {/* Time header (year/month/etc) */}
-      <div className="flex h-8 border-b bg-muted/70">
+      {/* Time header (year/month/etc) - matches table header height of 80px */}
+      <div className="flex border-b bg-muted/70" style={{ height: '40px' }}>
         {timeHeaders.map((header, i) => (
           <div
             key={i}
@@ -501,22 +501,22 @@ function TimelineGrid({ className, dayWidth }: { className?: string; dayWidth: n
         ))}
       </div>
 
-      {/* Timescale periods */}
-      <div className="flex h-12 border-b bg-muted/50">
+      {/* Timescale periods - matches table header height of 80px total (40px + 40px) */}
+      <div className="flex border-b bg-muted/50" style={{ height: '40px' }}>
         {periods.map((period, i) => {
           const isWeekend = timescale === "day" && (period.date.getDay() === 0 || period.date.getDay() === 6)
           return (
             <div
               key={i}
               className={cn(
-                "border-r text-xs p-1 text-center",
+                "border-r text-xs p-1 text-center flex flex-col justify-center",
                 isWeekend && "bg-muted/70"
               )}
               style={{ width: `${periodWidthPx}px`, minWidth: `${periodWidthPx}px` }}
             >
               <div className="font-medium">{period.label}</div>
               {period.subLabel && (
-                <div className="text-muted-foreground">{period.subLabel}</div>
+                <div className="text-muted-foreground text-[10px]">{period.subLabel}</div>
               )}
             </div>
           )

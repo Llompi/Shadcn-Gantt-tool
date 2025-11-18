@@ -21,6 +21,9 @@ import { GripVertical, Settings, X, Save, CheckCircle2 } from "lucide-react"
 import { DataFieldMapper, FieldMapping, ColorRule, TextTemplate } from "@/components/data-field-mapper"
 import { fieldMapperStorage } from "@/lib/storage/field-mapper-storage"
 import { ErrorBoundary } from "@/components/error-boundary"
+import { UnifiedGanttToolbar, TimescaleType } from "@/components/unified-gantt-toolbar"
+import { SortConfig, FilterConfig, GroupConfig } from "@/components/table-toolbar"
+import * as XLSX from "xlsx"
 
 // Dynamically import TaskEditModal to avoid SSR issues with createPortal
 const TaskEditModal = dynamic(
@@ -44,23 +47,179 @@ function GanttContent({
   onTasksImport: (tasks: Partial<Task>[]) => Promise<void>
   onProcessedTasksChange?: (tasks: Task[]) => void
 }) {
-  const { viewStart, viewEnd, timescale } = useGantt()
+  const { viewStart, viewEnd, timescale, setViewRange, setTimescale } = useGantt()
   const tableRef = useRef<HTMLDivElement>(null)
   const ganttRef = useRef<HTMLDivElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Toolbar state
+  const [searchQuery, setSearchQuery] = useState('')
+  const [sortConfig, setSortConfig] = useState<SortConfig | null>(null)
+  const [filterConfigs, setFilterConfigs] = useState<FilterConfig[]>([])
+  const [groupConfig, setGroupConfig] = useState<GroupConfig | null>(null)
+  const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>({
+    name: true,
+    start: true,
+    end: true,
+    status: true,
+    owner: true,
+    group: true,
+    progress: true,
+  })
+
+  // Available fields for filtering/sorting/grouping
+  const availableFields = [
+    { key: 'name', label: 'Name', type: 'string' as const },
+    { key: 'owner', label: 'Owner', type: 'string' as const },
+    { key: 'group', label: 'Group', type: 'string' as const },
+    { key: 'status', label: 'Status', type: 'string' as const },
+    { key: 'progress', label: 'Progress', type: 'number' as const },
+    { key: 'startAt', label: 'Start Date', type: 'date' as const },
+    { key: 'endAt', label: 'End Date', type: 'date' as const },
+  ]
+
+  // Gantt navigation
+  const shiftView = (days: number) => {
+    const shift = days * 24 * 60 * 60 * 1000
+    setViewRange(new Date(viewStart.getTime() + shift), new Date(viewEnd.getTime() + shift))
+  }
+
+  const goToToday = () => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    let newStart: Date
+    let newEnd: Date
+
+    switch (timescale) {
+      case "day":
+        newStart = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000)
+        newEnd = new Date(today.getTime() + 60 * 24 * 60 * 60 * 1000)
+        break
+      case "week":
+        const getStartOfWeek = (date: Date) => {
+          const d = new Date(date)
+          const day = d.getDay()
+          const diff = d.getDate() - day + (day === 0 ? -6 : 1)
+          d.setDate(diff)
+          d.setHours(0, 0, 0, 0)
+          return d
+        }
+        const addWeeks = (date: Date, weeks: number) => {
+          const result = new Date(date)
+          result.setDate(result.getDate() + weeks * 7)
+          return result
+        }
+        const weekStart = getStartOfWeek(today)
+        newStart = addWeeks(weekStart, -12)
+        newEnd = addWeeks(weekStart, 24)
+        break
+      default:
+        const currentRange = viewEnd.getTime() - viewStart.getTime()
+        const halfRange = currentRange / 2
+        newStart = new Date(today.getTime() - halfRange)
+        newEnd = new Date(today.getTime() + halfRange)
+    }
+
+    setViewRange(newStart, newEnd)
+  }
+
+  // Export functions
+  const formatDate = (date: Date | undefined): string => {
+    if (!date) return ""
+    const d = new Date(date)
+    return d.toISOString().split("T")[0]
+  }
+
+  const exportToCSV = () => {
+    const headers = ["ID", "Name", "Start Date", "End Date", "Status", "Owner", "Group", "Progress"]
+    const rows = tasks.map((task) => [
+      task.id,
+      task.name,
+      formatDate(task.startAt),
+      formatDate(task.endAt),
+      task.status?.name || "",
+      task.owner || "",
+      task.group || "",
+      task.progress?.toString() || "",
+    ])
+
+    const csvContent = [
+      headers.join(","),
+      ...rows.map((row) =>
+        row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")
+      ),
+    ].join("\n")
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
+    const link = document.createElement("a")
+    const url = URL.createObjectURL(blob)
+    link.setAttribute("href", url)
+    link.setAttribute("download", `tasks-${new Date().toISOString().split("T")[0]}.csv`)
+    link.style.visibility = "hidden"
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
+  const exportToExcel = () => {
+    const taskData = tasks.map((task) => ({
+      ID: task.id,
+      Name: task.name,
+      "Start Date": formatDate(task.startAt),
+      "End Date": formatDate(task.endAt),
+      Status: task.status?.name || "",
+      Owner: task.owner || "",
+      Group: task.group || "",
+      Progress: task.progress || 0,
+    }))
+
+    const wb = XLSX.utils.book_new()
+    const ws = XLSX.utils.json_to_sheet(taskData)
+    ws["!cols"] = [
+      { wch: 10 }, { wch: 30 }, { wch: 12 }, { wch: 12 },
+      { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 10 },
+    ]
+    XLSX.utils.book_append_sheet(wb, ws, "Tasks")
+    XLSX.writeFile(wb, `tasks-${new Date().toISOString().split("T")[0]}.xlsx`)
+  }
 
   return (
-    <div className="space-y-4">
-      {/* Export Controls */}
-      <div className="flex items-center justify-end">
-        <ExportButtons
-          ganttRef={ganttRef}
-          tableRef={tableRef}
-          filename="project-gantt"
-        />
-      </div>
+    <div className="flex flex-col h-[calc(100vh-200px)]">
+      {/* Unified Toolbar */}
+      <UnifiedGanttToolbar
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        sortConfig={sortConfig}
+        onSortChange={setSortConfig}
+        filterConfigs={filterConfigs}
+        onFilterChange={setFilterConfigs}
+        groupConfig={groupConfig}
+        onGroupChange={setGroupConfig}
+        availableFields={availableFields}
+        onExportCSV={exportToCSV}
+        onExportExcel={exportToExcel}
+        onImportClick={() => fileInputRef.current?.click()}
+        columnVisibility={columnVisibility}
+        onColumnVisibilityChange={setColumnVisibility}
+        viewStart={viewStart}
+        viewEnd={viewEnd}
+        timescale={timescale}
+        onTimescaleChange={setTimescale}
+        onShiftView={shiftView}
+        onGoToToday={goToToday}
+      />
+
+      {/* Hidden file input for import */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".csv,.xlsx,.xls"
+        className="hidden"
+      />
 
       {/* Resizable Panel Layout */}
-      <PanelGroup direction="horizontal" className="min-h-[600px] border rounded-lg overflow-hidden shadow-lg">
+      <PanelGroup direction="horizontal" className="flex-1 border-x border-b rounded-b-lg overflow-hidden shadow-lg">
         {/* Task Table Panel */}
         <Panel defaultSize={35} minSize={20} maxSize={60}>
           <div ref={tableRef} className="h-full overflow-hidden bg-background">
@@ -71,9 +230,12 @@ function GanttContent({
               onTaskDelete={onTaskDelete}
               onTasksImport={onTasksImport}
               onProcessedTasksChange={onProcessedTasksChange}
-              viewStart={viewStart}
-              viewEnd={viewEnd}
-              timescale={timescale}
+              searchQuery={searchQuery}
+              sortConfig={sortConfig}
+              filterConfigs={filterConfigs}
+              groupConfig={groupConfig}
+              columnVisibility={columnVisibility}
+              headersOnly={false}
             />
           </div>
         </Panel>
@@ -88,7 +250,6 @@ function GanttContent({
         {/* Gantt Chart Panel */}
         <Panel defaultSize={65} minSize={40}>
           <div ref={ganttRef} className="h-full overflow-hidden bg-background">
-            <GanttHeader />
             <GanttFeatureList />
           </div>
         </Panel>
