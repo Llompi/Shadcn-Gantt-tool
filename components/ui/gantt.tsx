@@ -35,7 +35,7 @@ interface GanttContextValue {
   onTaskDelete?: (taskId: string) => Promise<void>
   setViewRange: (start: Date, end: Date) => void
   setTimescale: (timescale: TimescaleType) => void
-  daysFromTodayRef: React.MutableRefObject<number | null>
+  goToToday: () => void
 }
 
 const GanttContext = React.createContext<GanttContextValue | null>(null)
@@ -125,90 +125,57 @@ export function GanttProvider({
   )
   const [timescale, setTimescale] = React.useState<TimescaleType>(defaultTimescale)
 
-  // Ref to track how many days from "today" the user is scrolled during zoom operations
-  const daysFromTodayRef = React.useRef<number | null>(null)
-
   const setViewRange = React.useCallback((start: Date, end: Date) => {
     setViewStart(start)
     setViewEnd(end)
   }, [])
 
-  // Adjust view range when timescale changes to preserve current viewport
-  React.useEffect(() => {
+  // Function to center view on today - will be called after zoom changes
+  const goToToday = React.useCallback(() => {
     const today = new Date()
     today.setHours(0, 0, 0, 0)
 
     let newStart: Date
     let newEnd: Date
 
-    // During zoom (when daysFromTodayRef is set), use "today" as anchor point
-    // and expand the view to maintain the same relative position from today
-    if (daysFromTodayRef.current !== null) {
-      // Center the view on the same relative position from today
-      const targetDate = new Date(today.getTime() + daysFromTodayRef.current * 24 * 60 * 60 * 1000)
-
-      switch (timescale) {
-        case "day":
-          // Symmetric: 45 days before and after target
-          newStart = new Date(targetDate.getTime() - 45 * 24 * 60 * 60 * 1000)
-          newEnd = new Date(targetDate.getTime() + 45 * 24 * 60 * 60 * 1000)
-          break
-        case "week":
-          // Symmetric: 18 weeks before and after target
-          newStart = addWeeks(targetDate, -18)
-          newEnd = addWeeks(targetDate, 18)
-          break
-        case "month":
-          // Symmetric: 9 months before and after target
-          newStart = addMonths(targetDate, -9)
-          newEnd = addMonths(targetDate, 9)
-          break
-        case "quarter":
-          // Symmetric: 6 quarters before and after target
-          newStart = addQuarters(targetDate, -6)
-          newEnd = addQuarters(targetDate, 6)
-          break
-        default:
-          return
-      }
-    } else {
-      // Non-zoom changes (like "Today" button): use aligned ranges with asymmetric distribution
-      const viewportCenter = new Date((viewStart.getTime() + viewEnd.getTime()) / 2)
-
-      switch (timescale) {
-        case "day":
-          // Show 30 days before and 60 days after viewport center
-          newStart = new Date(viewportCenter.getTime() - 30 * 24 * 60 * 60 * 1000)
-          newEnd = new Date(viewportCenter.getTime() + 60 * 24 * 60 * 60 * 1000)
-          break
-        case "week":
-          // Show 12 weeks before and 24 weeks after viewport center, aligned to week start
-          const weekStart = getStartOfWeek(viewportCenter)
-          newStart = addWeeks(weekStart, -12)
-          newEnd = addWeeks(weekStart, 24)
-          break
-        case "month":
-          // Show 6 months before and 12 months after viewport center, aligned to month start
-          const monthStart = getStartOfMonth(viewportCenter)
-          newStart = addMonths(monthStart, -6)
-          newEnd = addMonths(monthStart, 12)
-          break
-        case "quarter":
-          // Show 4 quarters before and 8 quarters after viewport center, aligned to quarter start
-          const quarterStart = getStartOfQuarter(viewportCenter)
-          newStart = addQuarters(quarterStart, -4)
-          newEnd = addQuarters(quarterStart, 8)
-          break
-        default:
-          return
-      }
+    switch (timescale) {
+      case "day":
+        newStart = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000)
+        newEnd = new Date(today.getTime() + 60 * 24 * 60 * 60 * 1000)
+        break
+      case "week":
+        const weekStart = getStartOfWeek(today)
+        newStart = addWeeks(weekStart, -12)
+        newEnd = addWeeks(weekStart, 24)
+        break
+      case "month":
+        const monthStart = getStartOfMonth(today)
+        newStart = addMonths(monthStart, -6)
+        newEnd = addMonths(monthStart, 12)
+        break
+      case "quarter":
+        const quarterStart = getStartOfQuarter(today)
+        newStart = addQuarters(quarterStart, -4)
+        newEnd = addQuarters(quarterStart, 8)
+        break
+      default:
+        return
     }
 
-    setViewStart(newStart)
-    setViewEnd(newEnd)
-    // Only run when timescale changes, not when viewStart/viewEnd change (would cause infinite loop)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timescale])
+    setViewRange(newStart, newEnd)
+
+    // Scroll to center today in viewport after a brief delay
+    setTimeout(() => {
+      const scrollableContainer = document.querySelector('.gantt-scrollbar')
+      if (scrollableContainer) {
+        const daysFromStart = (today.getTime() - newStart.getTime()) / (24 * 60 * 60 * 1000)
+        const dayWidth = timescale === 'day' ? 80 : timescale === 'week' ? 40 : timescale === 'month' ? 20 : 10
+        const todayPositionPx = daysFromStart * dayWidth
+        const scrollPosition = todayPositionPx - scrollableContainer.clientWidth / 2
+        scrollableContainer.scrollLeft = Math.max(0, scrollPosition)
+      }
+    }, 150)
+  }, [timescale, setViewRange])
 
   return (
     <GanttContext.Provider
@@ -224,7 +191,7 @@ export function GanttProvider({
         onTaskDelete,
         setViewRange,
         setTimescale,
-        daysFromTodayRef,
+        goToToday,
       }}
     >
       {children}
@@ -234,86 +201,11 @@ export function GanttProvider({
 
 // Header with navigation
 export function GanttHeader({ className }: { className?: string }) {
-  const { viewStart, viewEnd, timescale, setViewRange, setTimescale } = useGantt()
+  const { viewStart, viewEnd, timescale, setViewRange, setTimescale, goToToday } = useGantt()
 
   const shiftView = (days: number) => {
     const shift = days * 24 * 60 * 60 * 1000
     setViewRange(new Date(viewStart.getTime() + shift), new Date(viewEnd.getTime() + shift))
-  }
-
-  const resetView = () => {
-    // Calculate center point for smooth transition
-    const today = Date.now()
-    const rangeMs = 90 * 24 * 60 * 60 * 1000 // 90 days total range
-    setViewRange(
-      new Date(today - 30 * 24 * 60 * 60 * 1000),
-      new Date(today + 60 * 24 * 60 * 60 * 1000)
-    )
-  }
-
-  const goToToday = () => {
-    const today = new Date()
-    today.setHours(0, 0, 0, 0) // Start of today
-
-    console.log('[goToToday] Navigating to today:', today.toISOString())
-
-    // Calculate new range based on current timescale
-    let newStart: Date
-    let newEnd: Date
-
-    switch (timescale) {
-      case "day":
-        // Show 30 days before and 60 days after today
-        newStart = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000)
-        newEnd = new Date(today.getTime() + 60 * 24 * 60 * 60 * 1000)
-        break
-      case "week":
-        // Show 12 weeks before and 24 weeks after today
-        const weekStart = getStartOfWeek(today)
-        newStart = addWeeks(weekStart, -12)
-        newEnd = addWeeks(weekStart, 24)
-        break
-      case "month":
-        // Show 6 months before and 12 months after today
-        const monthStart = getStartOfMonth(today)
-        newStart = addMonths(monthStart, -6)
-        newEnd = addMonths(monthStart, 12)
-        break
-      case "quarter":
-        // Show 4 quarters before and 8 quarters after today
-        const quarterStart = getStartOfQuarter(today)
-        newStart = addQuarters(quarterStart, -4)
-        newEnd = addQuarters(quarterStart, 8)
-        break
-      default:
-        // Fallback: keep current range but center on today
-        const currentRange = viewEnd.getTime() - viewStart.getTime()
-        const halfRange = currentRange / 2
-        newStart = new Date(today.getTime() - halfRange)
-        newEnd = new Date(today.getTime() + halfRange)
-    }
-
-    console.log('[goToToday] New range:', newStart.toISOString(), 'to', newEnd.toISOString())
-    setViewRange(newStart, newEnd)
-
-    // Force scroll to today line after a brief delay to ensure render
-    setTimeout(() => {
-      // Find the scrollable container - it's the parent with class 'gantt-scrollbar'
-      const scrollableContainer = document.querySelector('.gantt-scrollbar')
-      if (scrollableContainer) {
-        // Calculate where "today" is in pixels
-        const daysFromStart = (today.getTime() - newStart.getTime()) / (24 * 60 * 60 * 1000)
-        const dayWidth = timescale === 'day' ? 80 : timescale === 'week' ? 40 : timescale === 'month' ? 20 : 10
-        const todayPositionPx = daysFromStart * dayWidth
-
-        // Scroll to center today in viewport
-        const scrollPosition = todayPositionPx - scrollableContainer.clientWidth / 2
-        scrollableContainer.scrollLeft = Math.max(0, scrollPosition)
-        console.log('[goToToday] Scrolled to position:', scrollPosition, 'dayWidth:', dayWidth, 'daysFromStart:', daysFromStart)
-      } else {
-        console.warn('[goToToday] Could not find scrollable container')
-      }
-    }, 150)
   }
 
   return (
@@ -886,7 +778,7 @@ export function GanttFeatureList({
   groupConfig?: { field: string } | null | undefined
   groupedTasks?: Record<string, GanttTask[]> | undefined
 }) {
-  const { tasks, viewStart, viewEnd, timescale, setTimescale, daysFromTodayRef } = useGantt()
+  const { tasks, viewStart, viewEnd, timescale, setTimescale, goToToday } = useGantt()
   const containerRef = React.useRef<HTMLDivElement>(null)
   const scrollVelocityRef = React.useRef({ x: 0, y: 0 })
   const lastScrollRef = React.useRef({ x: 0, y: 0, time: 0 })
@@ -1047,12 +939,9 @@ export function GanttFeatureList({
     }
   }, [timescale])
 
-  // Track zoom accumulation for smooth zooming and scroll position for zoom preservation
+  // Track zoom accumulation for smooth zooming
   const zoomAccumulatorRef = React.useRef(0)
   const zoomTimeoutRef = React.useRef<NodeJS.Timeout | null>(null)
-  const previousTimescaleRef = React.useRef<TimescaleType>(timescale)
-  const [isZooming, setIsZooming] = React.useState(false)
-  const zoomRestoreTimeoutRef = React.useRef<NodeJS.Timeout | null>(null)
 
   // Handle scroll events for shift+scroll (horizontal pan) and ctrl+scroll (zoom)
   React.useEffect(() => {
@@ -1089,42 +978,16 @@ export function GanttFeatureList({
           const currentIndex = scales.indexOf(timescale)
 
           if (zoomAccumulatorRef.current < 0 && currentIndex > 0) {
-            // Before zooming, capture how many days from "today" the user is scrolled
-            if (daysFromTodayRef.current === null) {
-              const today = new Date()
-              today.setHours(0, 0, 0, 0)
-
-              const scrollLeft = container.scrollLeft
-              const scrollCenterX = scrollLeft + container.clientWidth / 2
-              const daysFromStart = scrollCenterX / dayWidth
-              const centerDate = new Date(viewStart.getTime() + daysFromStart * 24 * 60 * 60 * 1000)
-
-              // Calculate days from today (positive = future, negative = past)
-              const daysFromToday = (centerDate.getTime() - today.getTime()) / (24 * 60 * 60 * 1000)
-              daysFromTodayRef.current = daysFromToday
-            }
-
-            setIsZooming(true)
+            // Zoom in
             setTimescale(scales[currentIndex - 1])
+            // Center on today after zoom change
+            setTimeout(() => goToToday(), 100)
             zoomAccumulatorRef.current = 0
           } else if (zoomAccumulatorRef.current > 0 && currentIndex < scales.length - 1) {
-            // Before zooming, capture how many days from "today" the user is scrolled
-            if (daysFromTodayRef.current === null) {
-              const today = new Date()
-              today.setHours(0, 0, 0, 0)
-
-              const scrollLeft = container.scrollLeft
-              const scrollCenterX = scrollLeft + container.clientWidth / 2
-              const daysFromStart = scrollCenterX / dayWidth
-              const centerDate = new Date(viewStart.getTime() + daysFromStart * 24 * 60 * 60 * 1000)
-
-              // Calculate days from today (positive = future, negative = past)
-              const daysFromToday = (centerDate.getTime() - today.getTime()) / (24 * 60 * 60 * 1000)
-              daysFromTodayRef.current = daysFromToday
-            }
-
-            setIsZooming(true)
+            // Zoom out
             setTimescale(scales[currentIndex + 1])
+            // Center on today after zoom change
+            setTimeout(() => goToToday(), 100)
             zoomAccumulatorRef.current = 0
           }
         }
@@ -1157,63 +1020,11 @@ export function GanttFeatureList({
         clearTimeout(zoomTimeoutRef.current)
       }
     }
-  }, [timescale, setTimescale, startMomentumScroll, viewStart, dayWidth])
+  }, [timescale, setTimescale, startMomentumScroll, viewStart, dayWidth, goToToday])
 
   // Calculate total days and minimum width
   const totalDays = (viewEnd.getTime() - viewStart.getTime()) / (24 * 60 * 60 * 1000)
   const minWidthPx = totalDays * dayWidth
-
-  // Restore scroll position after timescale changes to preserve position relative to today
-  React.useEffect(() => {
-    const container = containerRef.current
-    if (!container || daysFromTodayRef.current === null || !isZooming) return
-
-    // Only restore if timescale actually changed
-    if (previousTimescaleRef.current === timescale) return
-
-    const daysFromToday = daysFromTodayRef.current
-
-    // Clear any existing restore timeout
-    if (zoomRestoreTimeoutRef.current) {
-      clearTimeout(zoomRestoreTimeoutRef.current)
-    }
-
-    // Use multiple requestAnimationFrame calls to ensure all renders and layouts are complete
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          if (!container) return
-
-          const today = new Date()
-          today.setHours(0, 0, 0, 0)
-
-          // Calculate the target date (same relative position from today)
-          const targetDate = new Date(today.getTime() + daysFromToday * 24 * 60 * 60 * 1000)
-
-          // Calculate where this target date is in the new view
-          const daysFromStart = (targetDate.getTime() - viewStart.getTime()) / (24 * 60 * 60 * 1000)
-          const centerPositionPx = daysFromStart * dayWidth
-
-          // Scroll to keep that date centered (instant, no smooth scroll)
-          const scrollPosition = centerPositionPx - container.clientWidth / 2
-          container.scrollLeft = Math.max(0, scrollPosition)
-
-          // Clear the saved offset, update previous timescale, and end zooming state after a tiny delay
-          setTimeout(() => {
-            daysFromTodayRef.current = null
-            previousTimescaleRef.current = timescale
-            setIsZooming(false)
-          }, 16) // Clear after one more frame
-        })
-      })
-    })
-
-    return () => {
-      if (zoomRestoreTimeoutRef.current) {
-        clearTimeout(zoomRestoreTimeoutRef.current)
-      }
-    }
-  }, [timescale, viewStart, dayWidth, isZooming, daysFromTodayRef])
 
   return (
     <div
@@ -1228,7 +1039,7 @@ export function GanttFeatureList({
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
       style={{
-        scrollBehavior: (momentumFrameRef.current || isZooming) ? 'auto' : 'smooth',
+        scrollBehavior: momentumFrameRef.current ? 'auto' : 'smooth',
         '--task-row-height': '48px',
       } as React.CSSProperties}
     >
