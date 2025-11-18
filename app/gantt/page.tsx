@@ -57,7 +57,7 @@ function GanttContent({
   const [sortConfig, setSortConfig] = useState<SortConfig | null>(null)
   const [filterConfigs, setFilterConfigs] = useState<FilterConfig[]>([])
   const [groupConfig, setGroupConfig] = useState<GroupConfig | null>(null)
-  const [columnVisibility, setColumnVisibility] = useState({
+  const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>({
     name: true,
     start: true,
     end: true,
@@ -201,7 +201,7 @@ function GanttContent({
         onExportExcel={exportToExcel}
         onImportClick={() => fileInputRef.current?.click()}
         columnVisibility={columnVisibility}
-        onColumnVisibilityChange={(visibility) => setColumnVisibility(visibility)}
+        onColumnVisibilityChange={setColumnVisibility}
         viewStart={viewStart}
         viewEnd={viewEnd}
         timescale={timescale}
