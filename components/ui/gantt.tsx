@@ -129,6 +129,10 @@ export function GanttProvider({
     setViewEnd(end)
   }, [])
 
+  // Store the scroll container ref and current scroll center date for zoom preservation
+  const scrollCenterDateRef = React.useRef<Date | null>(null)
+  const previousTimescaleRef = React.useRef<TimescaleType>(timescale)
+
   // Adjust view range when timescale changes to preserve current viewport
   React.useEffect(() => {
     // Calculate the center of the current viewport
@@ -167,6 +171,9 @@ export function GanttProvider({
 
     setViewStart(newStart)
     setViewEnd(newEnd)
+
+    // Store previous timescale to detect changes
+    previousTimescaleRef.current = timescale
     // Only run when timescale changes, not when viewStart/viewEnd change (would cause infinite loop)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timescale])
@@ -991,9 +998,27 @@ export function GanttFeatureList({
     }
   }, [isPanning, isSpacePressed, startMomentumScroll])
 
-  // Track zoom accumulation for smooth zooming
+  // Calculate day width based on timescale for proper zoom scaling (moved before use)
+  const dayWidth = React.useMemo(() => {
+    switch (timescale) {
+      case 'day':
+        return 80 // 80px per day for day view (zoomed in)
+      case 'week':
+        return 40 // 40px per day for week view
+      case 'month':
+        return 20 // 20px per day for month view
+      case 'quarter':
+        return 10 // 10px per day for quarter view (zoomed out)
+      default:
+        return 40
+    }
+  }, [timescale])
+
+  // Track zoom accumulation for smooth zooming and scroll position for zoom preservation
   const zoomAccumulatorRef = React.useRef(0)
   const zoomTimeoutRef = React.useRef<NodeJS.Timeout | null>(null)
+  const scrollCenterDateRef = React.useRef<Date | null>(null)
+  const previousTimescaleRef = React.useRef<TimescaleType>(timescale)
 
   // Handle scroll events for shift+scroll (horizontal pan) and ctrl+scroll (zoom)
   React.useEffect(() => {
@@ -1030,9 +1055,23 @@ export function GanttFeatureList({
           const currentIndex = scales.indexOf(timescale)
 
           if (zoomAccumulatorRef.current < 0 && currentIndex > 0) {
+            // Before zooming, capture the current scroll center date
+            const scrollLeft = container.scrollLeft
+            const scrollCenterX = scrollLeft + container.clientWidth / 2
+            const daysFromStart = scrollCenterX / dayWidth
+            const centerDate = new Date(viewStart.getTime() + daysFromStart * 24 * 60 * 60 * 1000)
+            scrollCenterDateRef.current = centerDate
+
             setTimescale(scales[currentIndex - 1])
             zoomAccumulatorRef.current = 0
           } else if (zoomAccumulatorRef.current > 0 && currentIndex < scales.length - 1) {
+            // Before zooming, capture the current scroll center date
+            const scrollLeft = container.scrollLeft
+            const scrollCenterX = scrollLeft + container.clientWidth / 2
+            const daysFromStart = scrollCenterX / dayWidth
+            const centerDate = new Date(viewStart.getTime() + daysFromStart * 24 * 60 * 60 * 1000)
+            scrollCenterDateRef.current = centerDate
+
             setTimescale(scales[currentIndex + 1])
             zoomAccumulatorRef.current = 0
           }
@@ -1066,28 +1105,33 @@ export function GanttFeatureList({
         clearTimeout(zoomTimeoutRef.current)
       }
     }
-  }, [timescale, setTimescale, startMomentumScroll])
+  }, [timescale, setTimescale, startMomentumScroll, viewStart, dayWidth])
 
-  // Calculate day width based on timescale for proper zoom scaling
+  // Calculate total days and minimum width
   const totalDays = (viewEnd.getTime() - viewStart.getTime()) / (24 * 60 * 60 * 1000)
-
-  // Dynamic day width based on timescale (zoom level)
-  const dayWidth = React.useMemo(() => {
-    switch (timescale) {
-      case 'day':
-        return 80 // 80px per day for day view (zoomed in)
-      case 'week':
-        return 40 // 40px per day for week view
-      case 'month':
-        return 20 // 20px per day for month view
-      case 'quarter':
-        return 10 // 10px per day for quarter view (zoomed out)
-      default:
-        return 40
-    }
-  }, [timescale])
-
   const minWidthPx = totalDays * dayWidth
+
+  // Restore scroll position after timescale changes to keep the view centered
+  React.useEffect(() => {
+    const container = containerRef.current
+    if (!container || !scrollCenterDateRef.current) return
+
+    // Only restore if timescale actually changed
+    if (previousTimescaleRef.current === timescale) return
+
+    // Calculate where the saved center date should be in the new view
+    const centerDate = scrollCenterDateRef.current
+    const daysFromStart = (centerDate.getTime() - viewStart.getTime()) / (24 * 60 * 60 * 1000)
+    const centerPositionPx = daysFromStart * dayWidth
+
+    // Scroll to keep that date centered
+    const scrollPosition = centerPositionPx - container.clientWidth / 2
+    container.scrollLeft = Math.max(0, scrollPosition)
+
+    // Clear the saved date and update previous timescale
+    scrollCenterDateRef.current = null
+    previousTimescaleRef.current = timescale
+  }, [timescale, viewStart, dayWidth])
 
   return (
     <div
