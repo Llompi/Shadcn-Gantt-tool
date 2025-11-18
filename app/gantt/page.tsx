@@ -201,7 +201,7 @@ function GanttContent({
         onExportExcel={exportToExcel}
         onImportClick={() => fileInputRef.current?.click()}
         columnVisibility={columnVisibility}
-        onColumnVisibilityChange={setColumnVisibility}
+        onColumnVisibilityChange={(visibility) => setColumnVisibility(visibility)}
         viewStart={viewStart}
         viewEnd={viewEnd}
         timescale={timescale}

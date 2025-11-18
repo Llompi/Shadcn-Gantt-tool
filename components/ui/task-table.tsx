@@ -38,6 +38,7 @@ export function TaskTable({
   headersOnly = false,
 }: TaskTableProps) {
   const [editingCell, setEditingCell] = useState<{ taskId: string; field: string } | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Apply search, filter, sort, and group to tasks
   const processedTasks = useMemo(() => {
