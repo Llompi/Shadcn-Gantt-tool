@@ -129,10 +129,6 @@ export function GanttProvider({
     setViewEnd(end)
   }, [])
 
-  // Store the scroll container ref and current scroll center date for zoom preservation
-  const scrollCenterDateRef = React.useRef<Date | null>(null)
-  const previousTimescaleRef = React.useRef<TimescaleType>(timescale)
-
   // Adjust view range when timescale changes to preserve current viewport
   React.useEffect(() => {
     // Calculate the center of the current viewport
@@ -171,9 +167,6 @@ export function GanttProvider({
 
     setViewStart(newStart)
     setViewEnd(newEnd)
-
-    // Store previous timescale to detect changes
-    previousTimescaleRef.current = timescale
     // Only run when timescale changes, not when viewStart/viewEnd change (would cause infinite loop)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timescale])
@@ -1019,6 +1012,8 @@ export function GanttFeatureList({
   const zoomTimeoutRef = React.useRef<NodeJS.Timeout | null>(null)
   const scrollCenterDateRef = React.useRef<Date | null>(null)
   const previousTimescaleRef = React.useRef<TimescaleType>(timescale)
+  const [isZooming, setIsZooming] = React.useState(false)
+  const zoomRestoreTimeoutRef = React.useRef<NodeJS.Timeout | null>(null)
 
   // Handle scroll events for shift+scroll (horizontal pan) and ctrl+scroll (zoom)
   React.useEffect(() => {
@@ -1064,6 +1059,7 @@ export function GanttFeatureList({
               scrollCenterDateRef.current = centerDate
             }
 
+            setIsZooming(true)
             setTimescale(scales[currentIndex - 1])
             zoomAccumulatorRef.current = 0
           } else if (zoomAccumulatorRef.current > 0 && currentIndex < scales.length - 1) {
@@ -1076,6 +1072,7 @@ export function GanttFeatureList({
               scrollCenterDateRef.current = centerDate
             }
 
+            setIsZooming(true)
             setTimescale(scales[currentIndex + 1])
             zoomAccumulatorRef.current = 0
           }
@@ -1118,30 +1115,42 @@ export function GanttFeatureList({
   // Restore scroll position after timescale changes to keep the view centered
   React.useEffect(() => {
     const container = containerRef.current
-    if (!container || !scrollCenterDateRef.current) return
+    if (!container || !scrollCenterDateRef.current || !isZooming) return
 
     // Only restore if timescale actually changed
     if (previousTimescaleRef.current === timescale) return
 
     const centerDate = scrollCenterDateRef.current
 
-    // Use requestAnimationFrame to ensure DOM has updated, then restore scroll position
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        // Calculate where the saved center date should be in the new view
-        const daysFromStart = (centerDate.getTime() - viewStart.getTime()) / (24 * 60 * 60 * 1000)
-        const centerPositionPx = daysFromStart * dayWidth
+    // Clear any existing restore timeout
+    if (zoomRestoreTimeoutRef.current) {
+      clearTimeout(zoomRestoreTimeoutRef.current)
+    }
 
-        // Scroll to keep that date centered
-        const scrollPosition = centerPositionPx - container.clientWidth / 2
-        container.scrollLeft = Math.max(0, scrollPosition)
+    // Use setTimeout with longer delay to ensure all renders are complete
+    zoomRestoreTimeoutRef.current = setTimeout(() => {
+      if (!container || !centerDate) return
 
-        // Clear the saved date and update previous timescale
-        scrollCenterDateRef.current = null
-        previousTimescaleRef.current = timescale
-      })
-    })
-  }, [timescale, viewStart, dayWidth])
+      // Calculate where the saved center date should be in the new view
+      const daysFromStart = (centerDate.getTime() - viewStart.getTime()) / (24 * 60 * 60 * 1000)
+      const centerPositionPx = daysFromStart * dayWidth
+
+      // Scroll to keep that date centered (instant, no smooth scroll)
+      const scrollPosition = centerPositionPx - container.clientWidth / 2
+      container.scrollLeft = Math.max(0, scrollPosition)
+
+      // Clear the saved date, update previous timescale, and end zooming state
+      scrollCenterDateRef.current = null
+      previousTimescaleRef.current = timescale
+      setIsZooming(false)
+    }, 50) // 50ms delay to ensure DOM is fully settled
+
+    return () => {
+      if (zoomRestoreTimeoutRef.current) {
+        clearTimeout(zoomRestoreTimeoutRef.current)
+      }
+    }
+  }, [timescale, viewStart, dayWidth, isZooming])
 
   return (
     <div
@@ -1156,7 +1165,7 @@ export function GanttFeatureList({
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
       style={{
-        scrollBehavior: momentumFrameRef.current ? 'auto' : 'smooth',
+        scrollBehavior: (momentumFrameRef.current || isZooming) ? 'auto' : 'smooth',
         '--task-row-height': '48px',
       } as React.CSSProperties}
     >
