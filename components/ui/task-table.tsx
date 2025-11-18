@@ -969,8 +969,18 @@ export function TaskTable({
               <React.Fragment key={groupName}>
                 {/* Group header if grouping is active */}
                 {groupConfig && Object.keys(groupedTasks).length > 1 && (
-                  <tr className="bg-muted/70">
-                    <td colSpan={onTaskDelete ? 8 : 7} className="px-2 py-2 font-semibold text-sm">
+                  <tr className="bg-muted/70 border-b" style={{
+                    height: 'var(--task-row-height, 48px)',
+                    minHeight: 'var(--task-row-height, 48px)',
+                    maxHeight: 'var(--task-row-height, 48px)',
+                  }}>
+                    <td colSpan={onTaskDelete ? 8 : 7} className="px-2 font-semibold text-sm align-middle" style={{
+                      height: 'var(--task-row-height, 48px)',
+                      minHeight: 'var(--task-row-height, 48px)',
+                      maxHeight: 'var(--task-row-height, 48px)',
+                      padding: '0 0.5rem',
+                      boxSizing: 'border-box'
+                    }}>
                       {groupName} ({groupTasks.length})
                     </td>
                   </tr>
