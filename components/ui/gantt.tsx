@@ -952,16 +952,36 @@ export function GanttFeatureList({
       return
     }
 
+    console.log('🔄 [ZOOM RESTORE] Starting scroll restoration...')
+    console.log('  📅 Saved center date:', centerDate.toISOString())
+    console.log('  📊 Current timescale:', timescale)
+    console.log('  📏 Current dayWidth:', dayWidth, 'px')
+    console.log('  🗓️ View range:', {
+      start: viewStart.toISOString(),
+      end: viewEnd.toISOString()
+    })
+
     // Calculate where the center date should be in the new coordinate system
     const daysFromStart = (centerDate.getTime() - viewStart.getTime()) / (24 * 60 * 60 * 1000)
     const centerPositionPx = daysFromStart * dayWidth
     const targetScrollLeft = centerPositionPx - container.clientWidth / 2
 
+    console.log('  🧮 Calculations:')
+    console.log('    - Days from viewStart to center:', daysFromStart.toFixed(2))
+    console.log('    - Center position in pixels:', centerPositionPx.toFixed(2))
+    console.log('    - Container width:', container.clientWidth)
+    console.log('    - Target scroll left:', targetScrollLeft.toFixed(2))
+    console.log('    - Current scroll left (before):', container.scrollLeft.toFixed(2))
+
     // Use RAF for proper timing with DOM updates
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         if (container) {
-          container.scrollLeft = Math.max(0, targetScrollLeft)
+          const finalScrollLeft = Math.max(0, targetScrollLeft)
+          container.scrollLeft = finalScrollLeft
+          console.log('  ✅ Scroll restored to:', finalScrollLeft.toFixed(2))
+          console.log('  ✅ Actual scroll after set:', container.scrollLeft.toFixed(2))
+          console.log('─────────────────────────────────────────\n')
           // Clear the ref after restoration
           viewportCenterDateRef.current = null
         }
@@ -1007,23 +1027,40 @@ export function GanttFeatureList({
           const scales: TimescaleType[] = ["day", "week", "month", "quarter"]
           const currentIndex = scales.indexOf(timescale)
 
+          console.log('\n🔍 [ZOOM TRIGGER] Zoom threshold reached!')
+          console.log('  📊 Current timescale:', timescale, `(index: ${currentIndex})`)
+          console.log('  ⚡ Zoom direction:', zoomAccumulatorRef.current < 0 ? 'IN (⬅️)' : 'OUT (➡️)')
+
           // Capture viewport center BEFORE changing timescale
           const scrollLeft = container.scrollLeft
           const viewportCenterPx = scrollLeft + container.clientWidth / 2
           const daysFromStart = viewportCenterPx / dayWidth
           const centerDate = new Date(viewStart.getTime() + daysFromStart * 24 * 60 * 60 * 1000)
+
+          console.log('  📐 Current viewport state:')
+          console.log('    - Container scroll left:', scrollLeft.toFixed(2))
+          console.log('    - Container width:', container.clientWidth)
+          console.log('    - Viewport center (px):', viewportCenterPx.toFixed(2))
+          console.log('    - Current dayWidth:', dayWidth, 'px')
+          console.log('    - Days from start to center:', daysFromStart.toFixed(2))
+          console.log('    - 📅 CENTER DATE CAPTURED:', centerDate.toISOString())
+          console.log('    - View start:', viewStart.toISOString())
+
           viewportCenterDateRef.current = centerDate
 
           if (zoomAccumulatorRef.current < 0 && currentIndex > 0) {
             // Zoom in
+            console.log('  ➡️ Zooming IN:', timescale, '→', scales[currentIndex - 1])
             setTimescale(scales[currentIndex - 1])
             zoomAccumulatorRef.current = 0
           } else if (zoomAccumulatorRef.current > 0 && currentIndex < scales.length - 1) {
             // Zoom out
+            console.log('  ⬅️ Zooming OUT:', timescale, '→', scales[currentIndex + 1])
             setTimescale(scales[currentIndex + 1])
             zoomAccumulatorRef.current = 0
           } else {
             // Can't zoom further, clear the saved center
+            console.log('  ⛔ Cannot zoom further in this direction')
             viewportCenterDateRef.current = null
           }
         }
