@@ -36,6 +36,7 @@ interface GanttContextValue {
   setViewRange: (start: Date, end: Date) => void
   setTimescale: (timescale: TimescaleType) => void
   goToToday: () => void
+  calculateViewRangeForDate: (centerDate: Date, scale: TimescaleType) => { newStart: Date; newEnd: Date }
 }
 
 const GanttContext = React.createContext<GanttContextValue | null>(null)
@@ -130,6 +131,42 @@ export function GanttProvider({
     setViewEnd(end)
   }, [])
 
+  // Function to calculate appropriate view range for a given center date and timescale
+  const calculateViewRangeForDate = React.useCallback((centerDate: Date, scale: TimescaleType) => {
+    const center = new Date(centerDate)
+    center.setHours(0, 0, 0, 0)
+
+    let newStart: Date
+    let newEnd: Date
+
+    switch (scale) {
+      case "day":
+        newStart = new Date(center.getTime() - 30 * 24 * 60 * 60 * 1000)
+        newEnd = new Date(center.getTime() + 60 * 24 * 60 * 60 * 1000)
+        break
+      case "week":
+        const weekStart = getStartOfWeek(center)
+        newStart = addWeeks(weekStart, -12)
+        newEnd = addWeeks(weekStart, 24)
+        break
+      case "month":
+        const monthStart = getStartOfMonth(center)
+        newStart = addMonths(monthStart, -6)
+        newEnd = addMonths(monthStart, 12)
+        break
+      case "quarter":
+        const quarterStart = getStartOfQuarter(center)
+        newStart = addQuarters(quarterStart, -4)
+        newEnd = addQuarters(quarterStart, 8)
+        break
+      default:
+        newStart = new Date(center.getTime() - 30 * 24 * 60 * 60 * 1000)
+        newEnd = new Date(center.getTime() + 60 * 24 * 60 * 60 * 1000)
+    }
+
+    return { newStart, newEnd }
+  }, [])
+
   // Function to center view on today - will be called after zoom changes
   const goToToday = React.useCallback(() => {
     const today = new Date()
@@ -192,6 +229,7 @@ export function GanttProvider({
         setViewRange,
         setTimescale,
         goToToday,
+        calculateViewRangeForDate,
       }}
     >
       {children}
@@ -778,7 +816,7 @@ export function GanttFeatureList({
   groupConfig?: { field: string } | null | undefined
   groupedTasks?: Record<string, GanttTask[]> | undefined
 }) {
-  const { tasks, viewStart, viewEnd, timescale, setTimescale } = useGantt()
+  const { tasks, viewStart, viewEnd, timescale, setTimescale, setViewRange, calculateViewRangeForDate } = useGantt()
   const containerRef = React.useRef<HTMLDivElement>(null)
   const scrollVelocityRef = React.useRef({ x: 0, y: 0 })
   const lastScrollRef = React.useRef({ x: 0, y: 0, time: 0 })
@@ -1058,13 +1096,27 @@ export function GanttFeatureList({
 
           if (zoomAccumulatorRef.current < 0 && currentIndex > 0) {
             // Zoom in
-            console.log('  ➡️ Zooming IN:', timescale, '→', scales[currentIndex - 1])
-            setTimescale(scales[currentIndex - 1])
+            const newScale = scales[currentIndex - 1]
+            console.log('  ➡️ Zooming IN:', timescale, '→', newScale)
+
+            // Calculate new view range centered on the viewport center date
+            const { newStart, newEnd } = calculateViewRangeForDate(centerDate, newScale)
+            console.log('  📊 New view range:', { start: newStart.toISOString(), end: newEnd.toISOString() })
+
+            setTimescale(newScale)
+            setViewRange(newStart, newEnd)
             zoomAccumulatorRef.current = 0
           } else if (zoomAccumulatorRef.current > 0 && currentIndex < scales.length - 1) {
             // Zoom out
-            console.log('  ⬅️ Zooming OUT:', timescale, '→', scales[currentIndex + 1])
-            setTimescale(scales[currentIndex + 1])
+            const newScale = scales[currentIndex + 1]
+            console.log('  ⬅️ Zooming OUT:', timescale, '→', newScale)
+
+            // Calculate new view range centered on the viewport center date
+            const { newStart, newEnd } = calculateViewRangeForDate(centerDate, newScale)
+            console.log('  📊 New view range:', { start: newStart.toISOString(), end: newEnd.toISOString() })
+
+            setTimescale(newScale)
+            setViewRange(newStart, newEnd)
             zoomAccumulatorRef.current = 0
           } else {
             // Can't zoom further, clear the saved center
@@ -1101,7 +1153,7 @@ export function GanttFeatureList({
         clearTimeout(zoomTimeoutRef.current)
       }
     }
-  }, [timescale, setTimescale, startMomentumScroll, viewStart, dayWidth])
+  }, [timescale, setTimescale, startMomentumScroll, viewStart, dayWidth, setViewRange, calculateViewRangeForDate])
 
   // Calculate total days and minimum width
   const totalDays = (viewEnd.getTime() - viewStart.getTime()) / (24 * 60 * 60 * 1000)
