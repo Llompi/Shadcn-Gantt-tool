@@ -232,7 +232,7 @@ function GanttContent({
   }
 
   return (
-    <div className="flex flex-col" style={{ height: 'calc(100vh - 280px)', minHeight: '500px' }}>
+    <div className="flex flex-col">
       {/* Unified Toolbar */}
       <UnifiedGanttToolbar
         searchQuery={searchQuery}
@@ -266,10 +266,10 @@ function GanttContent({
       />
 
       {/* Resizable Panel Layout */}
-      <PanelGroup direction="horizontal" className="flex-1 border-x border-b rounded-b-lg overflow-hidden shadow-lg">
+      <PanelGroup direction="horizontal" className="border-x border-b rounded-b-lg shadow-lg" style={{ minHeight: '600px' }}>
         {/* Task Table Panel */}
         <Panel defaultSize={35} minSize={20} maxSize={60}>
-          <div ref={tableRef} className="h-full overflow-auto bg-background">
+          <div ref={tableRef} className="bg-background">
             <TaskTable
               tasks={tasks}
               statuses={statuses}
@@ -296,7 +296,7 @@ function GanttContent({
 
         {/* Gantt Chart Panel */}
         <Panel defaultSize={65} minSize={40}>
-          <div ref={ganttRef} className="h-full overflow-hidden bg-background">
+          <div ref={ganttRef} className="bg-background">
             <GanttFeatureList
               groupConfig={groupConfig}
               groupedTasks={groupedTasksForGantt}

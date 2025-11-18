@@ -1093,7 +1093,7 @@ export function GanttFeatureList({
     <div
       ref={containerRef}
       className={cn(
-        "relative overflow-auto scroll-smooth gantt-scrollbar",
+        "relative overflow-x-auto scroll-smooth gantt-scrollbar",
         isPanning && "select-none",
         className
       )}
@@ -1108,7 +1108,7 @@ export function GanttFeatureList({
     >
       <div style={{ minWidth: `${minWidthPx}px`, position: 'relative' }}>
         <TimelineGrid dayWidth={dayWidth} />
-        <div id="gantt-timeline-container" className="relative min-h-[400px] p-4 overflow-hidden">
+        <div id="gantt-timeline-container" className="relative p-4">
           {/* Today line with proper positioning */}
           <div
             className="absolute top-0 bottom-0 w-0.5 bg-red-500 pointer-events-none z-20"
