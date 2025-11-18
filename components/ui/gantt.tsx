@@ -141,32 +141,62 @@ export function GanttProvider({
     let newStart: Date
     let newEnd: Date
 
-    switch (timescale) {
-      case "day":
-        // Show 30 days before and 60 days after viewport center
-        newStart = new Date(viewportCenter.getTime() - 30 * 24 * 60 * 60 * 1000)
-        newEnd = new Date(viewportCenter.getTime() + 60 * 24 * 60 * 60 * 1000)
-        break
-      case "week":
-        // Show 12 weeks before and 24 weeks after viewport center, aligned to week start
-        const weekStart = getStartOfWeek(viewportCenter)
-        newStart = addWeeks(weekStart, -12)
-        newEnd = addWeeks(weekStart, 24)
-        break
-      case "month":
-        // Show 6 months before and 12 months after viewport center, aligned to month start
-        const monthStart = getStartOfMonth(viewportCenter)
-        newStart = addMonths(monthStart, -6)
-        newEnd = addMonths(monthStart, 12)
-        break
-      case "quarter":
-        // Show 4 quarters before and 8 quarters after viewport center, aligned to quarter start
-        const quarterStart = getStartOfQuarter(viewportCenter)
-        newStart = addQuarters(quarterStart, -4)
-        newEnd = addQuarters(quarterStart, 8)
-        break
-      default:
-        return
+    // During zoom (when scrollCenterDateRef is set), use symmetric ranges without snapping
+    // to keep the exact scroll position centered
+    if (scrollCenterDateRef.current) {
+      switch (timescale) {
+        case "day":
+          // Symmetric: 45 days before and after (90 total)
+          newStart = new Date(viewportCenter.getTime() - 45 * 24 * 60 * 60 * 1000)
+          newEnd = new Date(viewportCenter.getTime() + 45 * 24 * 60 * 60 * 1000)
+          break
+        case "week":
+          // Symmetric: 18 weeks before and after (36 weeks total)
+          newStart = addWeeks(viewportCenter, -18)
+          newEnd = addWeeks(viewportCenter, 18)
+          break
+        case "month":
+          // Symmetric: 9 months before and after (18 months total)
+          newStart = addMonths(viewportCenter, -9)
+          newEnd = addMonths(viewportCenter, 9)
+          break
+        case "quarter":
+          // Symmetric: 6 quarters before and after (12 quarters total)
+          newStart = addQuarters(viewportCenter, -6)
+          newEnd = addQuarters(viewportCenter, 6)
+          break
+        default:
+          return
+      }
+    } else {
+      // Non-zoom changes (like "Today" button): use aligned ranges with asymmetric distribution
+      switch (timescale) {
+        case "day":
+          // Show 30 days before and 60 days after viewport center
+          newStart = new Date(viewportCenter.getTime() - 30 * 24 * 60 * 60 * 1000)
+          newEnd = new Date(viewportCenter.getTime() + 60 * 24 * 60 * 60 * 1000)
+          break
+        case "week":
+          // Show 12 weeks before and 24 weeks after viewport center, aligned to week start
+          const weekStart = getStartOfWeek(viewportCenter)
+          newStart = addWeeks(weekStart, -12)
+          newEnd = addWeeks(weekStart, 24)
+          break
+        case "month":
+          // Show 6 months before and 12 months after viewport center, aligned to month start
+          const monthStart = getStartOfMonth(viewportCenter)
+          newStart = addMonths(monthStart, -6)
+          newEnd = addMonths(monthStart, 12)
+          break
+        case "quarter":
+          // Show 4 quarters before and 8 quarters after viewport center, aligned to quarter start
+          const quarterStart = getStartOfQuarter(viewportCenter)
+          newStart = addQuarters(quarterStart, -4)
+          newEnd = addQuarters(quarterStart, 8)
+          break
+        default:
+          return
+      }
     }
 
     setViewStart(newStart)
