@@ -778,7 +778,7 @@ export function GanttFeatureList({
   groupConfig?: { field: string } | null | undefined
   groupedTasks?: Record<string, GanttTask[]> | undefined
 }) {
-  const { tasks, viewStart, viewEnd, timescale, setTimescale, goToToday } = useGantt()
+  const { tasks, viewStart, viewEnd, timescale, setTimescale } = useGantt()
   const containerRef = React.useRef<HTMLDivElement>(null)
   const scrollVelocityRef = React.useRef({ x: 0, y: 0 })
   const lastScrollRef = React.useRef({ x: 0, y: 0, time: 0 })
@@ -786,6 +786,9 @@ export function GanttFeatureList({
   const [isSpacePressed, setIsSpacePressed] = React.useState(false)
   const [isPanning, setIsPanning] = React.useState(false)
   const [panStart, setPanStart] = React.useState({ x: 0, y: 0, scrollX: 0, scrollY: 0 })
+
+  // Ref to track viewport center date during zoom for smooth preservation
+  const viewportCenterDateRef = React.useRef<Date | null>(null)
 
   // Smooth momentum scrolling
   const startMomentumScroll = React.useCallback(() => {
@@ -939,6 +942,33 @@ export function GanttFeatureList({
     }
   }, [timescale])
 
+  // Restore scroll position after zoom to preserve viewport center
+  React.useEffect(() => {
+    const centerDate = viewportCenterDateRef.current
+    const container = containerRef.current
+
+    // Only restore if we have a saved center date (indicates zoom occurred)
+    if (!centerDate || !container) {
+      return
+    }
+
+    // Calculate where the center date should be in the new coordinate system
+    const daysFromStart = (centerDate.getTime() - viewStart.getTime()) / (24 * 60 * 60 * 1000)
+    const centerPositionPx = daysFromStart * dayWidth
+    const targetScrollLeft = centerPositionPx - container.clientWidth / 2
+
+    // Use RAF for proper timing with DOM updates
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (container) {
+          container.scrollLeft = Math.max(0, targetScrollLeft)
+          // Clear the ref after restoration
+          viewportCenterDateRef.current = null
+        }
+      })
+    })
+  }, [timescale, viewStart, viewEnd, dayWidth])
+
   // Track zoom accumulation for smooth zooming
   const zoomAccumulatorRef = React.useRef(0)
   const zoomTimeoutRef = React.useRef<NodeJS.Timeout | null>(null)
@@ -977,18 +1007,24 @@ export function GanttFeatureList({
           const scales: TimescaleType[] = ["day", "week", "month", "quarter"]
           const currentIndex = scales.indexOf(timescale)
 
+          // Capture viewport center BEFORE changing timescale
+          const scrollLeft = container.scrollLeft
+          const viewportCenterPx = scrollLeft + container.clientWidth / 2
+          const daysFromStart = viewportCenterPx / dayWidth
+          const centerDate = new Date(viewStart.getTime() + daysFromStart * 24 * 60 * 60 * 1000)
+          viewportCenterDateRef.current = centerDate
+
           if (zoomAccumulatorRef.current < 0 && currentIndex > 0) {
             // Zoom in
             setTimescale(scales[currentIndex - 1])
-            // Center on today after zoom change
-            setTimeout(() => goToToday(), 100)
             zoomAccumulatorRef.current = 0
           } else if (zoomAccumulatorRef.current > 0 && currentIndex < scales.length - 1) {
             // Zoom out
             setTimescale(scales[currentIndex + 1])
-            // Center on today after zoom change
-            setTimeout(() => goToToday(), 100)
             zoomAccumulatorRef.current = 0
+          } else {
+            // Can't zoom further, clear the saved center
+            viewportCenterDateRef.current = null
           }
         }
 
@@ -1020,7 +1056,7 @@ export function GanttFeatureList({
         clearTimeout(zoomTimeoutRef.current)
       }
     }
-  }, [timescale, setTimescale, startMomentumScroll, viewStart, dayWidth, goToToday])
+  }, [timescale, setTimescale, startMomentumScroll, viewStart, dayWidth])
 
   // Calculate total days and minimum width
   const totalDays = (viewEnd.getTime() - viewStart.getTime()) / (24 * 60 * 60 * 1000)
