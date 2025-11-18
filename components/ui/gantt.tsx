@@ -790,6 +790,13 @@ export function GanttFeatureList({
   // Ref to track viewport center date during zoom for smooth preservation
   const viewportCenterDateRef = React.useRef<Date | null>(null)
 
+  // Debug: Log when component mounts
+  React.useEffect(() => {
+    console.log('✅ [GANTT] GanttFeatureList mounted with zoom logging enabled')
+    console.log('   Current timescale:', timescale)
+    console.log('   Ctrl+Scroll to zoom and see logs')
+  }, [])
+
   // Smooth momentum scrolling
   const startMomentumScroll = React.useCallback(() => {
     if (momentumFrameRef.current) {
@@ -1014,6 +1021,7 @@ export function GanttFeatureList({
 
         // Accumulate zoom delta for smoother feel
         zoomAccumulatorRef.current += e.deltaY
+        console.log('⚙️ [WHEEL] Ctrl+Scroll detected, accumulator:', zoomAccumulatorRef.current.toFixed(2))
 
         // Clear existing timeout
         if (zoomTimeoutRef.current) {
