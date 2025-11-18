@@ -1055,22 +1055,26 @@ export function GanttFeatureList({
           const currentIndex = scales.indexOf(timescale)
 
           if (zoomAccumulatorRef.current < 0 && currentIndex > 0) {
-            // Before zooming, capture the current scroll center date
-            const scrollLeft = container.scrollLeft
-            const scrollCenterX = scrollLeft + container.clientWidth / 2
-            const daysFromStart = scrollCenterX / dayWidth
-            const centerDate = new Date(viewStart.getTime() + daysFromStart * 24 * 60 * 60 * 1000)
-            scrollCenterDateRef.current = centerDate
+            // Before zooming, capture the current scroll center date (only if not already set for rapid zooms)
+            if (!scrollCenterDateRef.current) {
+              const scrollLeft = container.scrollLeft
+              const scrollCenterX = scrollLeft + container.clientWidth / 2
+              const daysFromStart = scrollCenterX / dayWidth
+              const centerDate = new Date(viewStart.getTime() + daysFromStart * 24 * 60 * 60 * 1000)
+              scrollCenterDateRef.current = centerDate
+            }
 
             setTimescale(scales[currentIndex - 1])
             zoomAccumulatorRef.current = 0
           } else if (zoomAccumulatorRef.current > 0 && currentIndex < scales.length - 1) {
-            // Before zooming, capture the current scroll center date
-            const scrollLeft = container.scrollLeft
-            const scrollCenterX = scrollLeft + container.clientWidth / 2
-            const daysFromStart = scrollCenterX / dayWidth
-            const centerDate = new Date(viewStart.getTime() + daysFromStart * 24 * 60 * 60 * 1000)
-            scrollCenterDateRef.current = centerDate
+            // Before zooming, capture the current scroll center date (only if not already set for rapid zooms)
+            if (!scrollCenterDateRef.current) {
+              const scrollLeft = container.scrollLeft
+              const scrollCenterX = scrollLeft + container.clientWidth / 2
+              const daysFromStart = scrollCenterX / dayWidth
+              const centerDate = new Date(viewStart.getTime() + daysFromStart * 24 * 60 * 60 * 1000)
+              scrollCenterDateRef.current = centerDate
+            }
 
             setTimescale(scales[currentIndex + 1])
             zoomAccumulatorRef.current = 0
@@ -1119,18 +1123,24 @@ export function GanttFeatureList({
     // Only restore if timescale actually changed
     if (previousTimescaleRef.current === timescale) return
 
-    // Calculate where the saved center date should be in the new view
     const centerDate = scrollCenterDateRef.current
-    const daysFromStart = (centerDate.getTime() - viewStart.getTime()) / (24 * 60 * 60 * 1000)
-    const centerPositionPx = daysFromStart * dayWidth
 
-    // Scroll to keep that date centered
-    const scrollPosition = centerPositionPx - container.clientWidth / 2
-    container.scrollLeft = Math.max(0, scrollPosition)
+    // Use requestAnimationFrame to ensure DOM has updated, then restore scroll position
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        // Calculate where the saved center date should be in the new view
+        const daysFromStart = (centerDate.getTime() - viewStart.getTime()) / (24 * 60 * 60 * 1000)
+        const centerPositionPx = daysFromStart * dayWidth
 
-    // Clear the saved date and update previous timescale
-    scrollCenterDateRef.current = null
-    previousTimescaleRef.current = timescale
+        // Scroll to keep that date centered
+        const scrollPosition = centerPositionPx - container.clientWidth / 2
+        container.scrollLeft = Math.max(0, scrollPosition)
+
+        // Clear the saved date and update previous timescale
+        scrollCenterDateRef.current = null
+        previousTimescaleRef.current = timescale
+      })
+    })
   }, [timescale, viewStart, dayWidth])
 
   return (
@@ -1152,7 +1162,7 @@ export function GanttFeatureList({
     >
       <div style={{ minWidth: `${minWidthPx}px`, position: 'relative' }}>
         <TimelineGrid dayWidth={dayWidth} />
-        <div id="gantt-timeline-container" className="relative p-4">
+        <div id="gantt-timeline-container" className="relative px-4 pb-4">
           {/* Today line with proper positioning */}
           <div
             className="absolute top-0 bottom-0 w-0.5 bg-red-500 pointer-events-none z-20"
