@@ -15,10 +15,12 @@ interface TaskTableProps {
   onTaskDelete?: (taskId: string) => Promise<void>
   onTasksImport: (tasks: Partial<Task>[]) => Promise<void>
   onProcessedTasksChange?: (tasks: Task[]) => void
-  viewStart?: Date
-  viewEnd?: Date
-  timescale?: TimescaleType
-  toolbarRef?: React.RefObject<HTMLDivElement>
+  searchQuery: string
+  sortConfig: SortConfig | null
+  filterConfigs: FilterConfig[]
+  groupConfig: GroupConfig | null
+  columnVisibility: Record<string, boolean>
+  headersOnly?: boolean
 }
 
 export function TaskTable({
@@ -28,42 +30,14 @@ export function TaskTable({
   onTaskDelete,
   onTasksImport,
   onProcessedTasksChange,
-  viewStart,
-  viewEnd,
-  timescale = "day",
-  toolbarRef,
+  searchQuery,
+  sortConfig,
+  filterConfigs,
+  groupConfig,
+  columnVisibility,
+  headersOnly = false,
 }: TaskTableProps) {
   const [editingCell, setEditingCell] = useState<{ taskId: string; field: string } | null>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
-
-  // Table toolbar state
-  const [searchQuery, setSearchQuery] = useState('')
-  const [sortConfig, setSortConfig] = useState<SortConfig | null>(null)
-  const [filterConfigs, setFilterConfigs] = useState<FilterConfig[]>([])
-  const [groupConfig, setGroupConfig] = useState<GroupConfig | null>(null)
-
-  // Column visibility state
-  const [columnVisibility, setColumnVisibility] = useState({
-    name: true,
-    start: true,
-    end: true,
-    status: true,
-    owner: true,
-    group: true,
-    progress: true,
-  })
-  const [showColumnMenu, setShowColumnMenu] = useState(false)
-
-  // Available fields for filtering/sorting/grouping
-  const availableFields = [
-    { key: 'name', label: 'Name', type: 'string' as const },
-    { key: 'owner', label: 'Owner', type: 'string' as const },
-    { key: 'group', label: 'Group', type: 'string' as const },
-    { key: 'status', label: 'Status', type: 'string' as const },
-    { key: 'progress', label: 'Progress', type: 'number' as const },
-    { key: 'startAt', label: 'Start Date', type: 'date' as const },
-    { key: 'endAt', label: 'End Date', type: 'date' as const },
-  ]
 
   // Apply search, filter, sort, and group to tasks
   const processedTasks = useMemo(() => {
@@ -482,11 +456,11 @@ export function TaskTable({
     return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7)
   }
 
-  // Export to Excel with Gantt chart visualization
+  // Export to Excel with task data (Gantt visualization removed - handled by parent)
   const exportToExcel = () => {
     const wb = XLSX.utils.book_new()
 
-    // Sheet 1: Task data
+    // Task data
     const taskData = tasks.map((task) => ({
       ID: task.id,
       Name: task.name,
@@ -495,20 +469,19 @@ export function TaskTable({
       Status: task.status?.name || "",
       Owner: task.owner || "",
       Group: task.group || "",
-      Description: task.description || "",
       Progress: task.progress || 0,
     }))
 
     const wsData = XLSX.utils.json_to_sheet(taskData)
     wsData["!cols"] = [
       { wch: 10 }, { wch: 30 }, { wch: 12 }, { wch: 12 },
-      { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 40 }, { wch: 10 },
+      { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 10 },
     ]
     XLSX.utils.book_append_sheet(wb, wsData, "Tasks")
 
-    // Sheet 2: Gantt Chart visualization
-    if (viewStart && viewEnd) {
-      const ganttData = createGanttChartData(viewStart, viewEnd, timescale)
+    // Gantt Chart visualization removed (now handled by parent component)
+    if (false) {
+      const ganttData = { data: [], periodCount: 0 } // createGanttChartData(viewStart, viewEnd, timescale)
       const wsGantt = XLSX.utils.aoa_to_sheet(ganttData.data)
 
       // Set column widths for Gantt chart
@@ -889,95 +862,7 @@ export function TaskTable({
   }
 
   return (
-    <div className="flex flex-col h-full" style={{ '--task-row-height': '48px' } as React.CSSProperties}>
-      {/* Combined Toolbars Container - measured for Gantt sync */}
-      <div ref={toolbarRef} className="shrink-0">
-        {/* Table Toolbar with Search, Filter, Sort, Group */}
-        <div className="p-3 border-b bg-background">
-          <TableToolbar
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            sortConfig={sortConfig}
-            onSortChange={setSortConfig}
-            filterConfigs={filterConfigs}
-            onFilterChange={setFilterConfigs}
-            groupConfig={groupConfig}
-            onGroupChange={setGroupConfig}
-            availableFields={availableFields}
-          />
-        </div>
-
-        {/* Export/Import Toolbar */}
-        <div className="flex gap-2 p-2 border-b bg-muted/50">
-        <button
-          onClick={exportToCSV}
-          className="flex items-center gap-1 px-3 py-1.5 text-sm border rounded hover:bg-accent transition-colors"
-          title="Export to CSV"
-        >
-          <Download className="h-4 w-4" />
-          CSV
-        </button>
-        <button
-          onClick={exportToExcel}
-          className="flex items-center gap-1 px-3 py-1.5 text-sm border rounded hover:bg-accent transition-colors"
-          title="Export to Excel"
-        >
-          <Download className="h-4 w-4" />
-          Excel
-        </button>
-        <button
-          onClick={() => fileInputRef.current?.click()}
-          className="flex items-center gap-1 px-3 py-1.5 text-sm border rounded hover:bg-accent transition-colors"
-          title="Import from CSV or Excel"
-        >
-          <Upload className="h-4 w-4" />
-          Import
-        </button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".csv,.xlsx,.xls"
-          onChange={handleFileImport}
-          className="hidden"
-        />
-
-        {/* Column Visibility Dropdown */}
-        <div className="relative ml-auto">
-          <button
-            onClick={() => setShowColumnMenu(!showColumnMenu)}
-            className="flex items-center gap-1 px-3 py-1.5 text-sm border rounded hover:bg-accent transition-colors"
-            title="Show/Hide Columns"
-          >
-            <Eye className="h-4 w-4" />
-            Columns
-            <ChevronDown className="h-3 w-3" />
-          </button>
-
-          {showColumnMenu && (
-            <div className="absolute right-0 top-full mt-1 w-48 bg-background border rounded-lg shadow-lg z-20 p-2">
-              <div className="text-xs font-semibold text-muted-foreground mb-2 px-2">Show/Hide Columns</div>
-              {Object.entries(columnVisibility).map(([col, visible]) => (
-                <label
-                  key={col}
-                  className="flex items-center gap-2 px-2 py-1.5 hover:bg-accent rounded cursor-pointer"
-                >
-                  <input
-                    type="checkbox"
-                    checked={visible}
-                    onChange={(e) => setColumnVisibility(prev => ({ ...prev, [col]: e.target.checked }))}
-                    className="rounded border-gray-300"
-                  />
-                  <span className="text-sm capitalize">{col === 'start' ? 'Start Date' : col === 'end' ? 'End Date' : col}</span>
-                </label>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-      </div>
-
-      {/* Table */}
-      <div className="flex-1 overflow-auto">
+    <div className="flex flex-col h-full overflow-hidden" style={{ '--task-row-height': '48px' } as React.CSSProperties}>
         <table className="w-full text-sm" style={{ borderCollapse: 'collapse', borderSpacing: 0 }}>
           <thead className="sticky top-0 bg-muted z-10" style={{ height: '80px' }}>
             <tr style={{ height: '80px', margin: 0, padding: 0 }}>
@@ -1356,7 +1241,6 @@ export function TaskTable({
             ))}
           </tbody>
         </table>
-      </div>
     </div>
   )
 }
