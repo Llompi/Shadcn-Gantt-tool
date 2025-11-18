@@ -863,7 +863,7 @@ export function TaskTable({
   }
 
   return (
-    <div className="flex flex-col h-full overflow-hidden" style={{ '--task-row-height': '48px' } as React.CSSProperties}>
+    <div className="flex flex-col" style={{ '--task-row-height': '48px' } as React.CSSProperties}>
         <table className="w-full text-sm" style={{ borderCollapse: 'collapse', borderSpacing: 0 }}>
           <thead className="sticky top-0 bg-muted z-10" style={{ height: '80px' }}>
             <tr style={{ height: '80px', margin: 0, padding: 0 }}>

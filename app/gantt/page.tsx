@@ -51,6 +51,8 @@ function GanttContent({
   const tableRef = useRef<HTMLDivElement>(null)
   const ganttRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [processedTasks, setProcessedTasks] = useState<Task[]>([])
+  const [groupedTasksForGantt, setGroupedTasksForGantt] = useState<Record<string, GanttTask[]> | undefined>(undefined)
 
   // Toolbar state
   const [searchQuery, setSearchQuery] = useState('')
@@ -77,6 +79,36 @@ function GanttContent({
     { key: 'startAt', label: 'Start Date', type: 'date' as const },
     { key: 'endAt', label: 'End Date', type: 'date' as const },
   ]
+
+  // Track processed tasks and compute grouped tasks for gantt
+  const handleProcessedTasksChange = useCallback((tasks: Task[]) => {
+    setProcessedTasks(tasks)
+    onProcessedTasksChange?.(tasks)
+
+    // Group tasks for gantt if grouping is active
+    if (groupConfig) {
+      const groups: Record<string, GanttTask[]> = {}
+
+      tasks.forEach(task => {
+        let groupKey = task[groupConfig.field as keyof Task]
+
+        // Handle status object
+        if (groupConfig.field === 'status' && groupKey && typeof groupKey === 'object' && 'name' in groupKey) {
+          groupKey = groupKey.name as string
+        }
+
+        const key = groupKey ? String(groupKey) : 'Ungrouped'
+        if (!groups[key]) {
+          groups[key] = []
+        }
+        groups[key].push(task as GanttTask)
+      })
+
+      setGroupedTasksForGantt(groups)
+    } else {
+      setGroupedTasksForGantt(undefined)
+    }
+  }, [groupConfig, onProcessedTasksChange])
 
   // Gantt navigation
   const shiftView = (days: number) => {
@@ -122,6 +154,21 @@ function GanttContent({
     }
 
     setViewRange(newStart, newEnd)
+
+    // Scroll to center today in the viewport after a brief delay
+    setTimeout(() => {
+      const scrollableContainer = document.querySelector('.gantt-scrollbar')
+      if (scrollableContainer) {
+        // Calculate where "today" is in pixels
+        const daysFromStart = (today.getTime() - newStart.getTime()) / (24 * 60 * 60 * 1000)
+        const dayWidth = timescale === 'day' ? 80 : timescale === 'week' ? 40 : timescale === 'month' ? 20 : 10
+        const todayPositionPx = daysFromStart * dayWidth
+
+        // Scroll to center today in viewport
+        const scrollPosition = todayPositionPx - scrollableContainer.clientWidth / 2
+        scrollableContainer.scrollLeft = Math.max(0, scrollPosition)
+      }
+    }, 150)
   }
 
   // Export functions
@@ -185,7 +232,7 @@ function GanttContent({
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-200px)]">
+    <div className="flex flex-col">
       {/* Unified Toolbar */}
       <UnifiedGanttToolbar
         searchQuery={searchQuery}
@@ -219,17 +266,17 @@ function GanttContent({
       />
 
       {/* Resizable Panel Layout */}
-      <PanelGroup direction="horizontal" className="flex-1 border-x border-b rounded-b-lg overflow-hidden shadow-lg">
+      <PanelGroup direction="horizontal" className="border-x border-b rounded-b-lg shadow-lg" style={{ minHeight: '600px' }}>
         {/* Task Table Panel */}
         <Panel defaultSize={35} minSize={20} maxSize={60}>
-          <div ref={tableRef} className="h-full overflow-hidden bg-background">
+          <div ref={tableRef} className="bg-background">
             <TaskTable
               tasks={tasks}
               statuses={statuses}
               onTaskUpdate={onTaskUpdate}
               onTaskDelete={onTaskDelete}
               onTasksImport={onTasksImport}
-              onProcessedTasksChange={onProcessedTasksChange}
+              onProcessedTasksChange={handleProcessedTasksChange}
               searchQuery={searchQuery}
               sortConfig={sortConfig}
               filterConfigs={filterConfigs}
@@ -249,8 +296,11 @@ function GanttContent({
 
         {/* Gantt Chart Panel */}
         <Panel defaultSize={65} minSize={40}>
-          <div ref={ganttRef} className="h-full overflow-hidden bg-background">
-            <GanttFeatureList />
+          <div ref={ganttRef} className="bg-background">
+            <GanttFeatureList
+              groupConfig={groupConfig}
+              groupedTasks={groupedTasksForGantt}
+            />
           </div>
         </Panel>
       </PanelGroup>
