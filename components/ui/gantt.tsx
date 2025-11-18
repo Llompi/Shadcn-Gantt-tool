@@ -837,7 +837,15 @@ export function GanttFeatureItem({ task, dayWidth }: { task: GanttTask; dayWidth
 }
 
 // Feature List (Container for tasks)
-export function GanttFeatureList({ className }: { className?: string }) {
+export function GanttFeatureList({
+  className,
+  groupConfig,
+  groupedTasks,
+}: {
+  className?: string
+  groupConfig?: { field: string } | null
+  groupedTasks?: Record<string, GanttTask[]>
+}) {
   const { tasks, viewStart, viewEnd, timescale, setTimescale, setViewRange } = useGantt()
   const containerRef = React.useRef<HTMLDivElement>(null)
   const scrollVelocityRef = React.useRef({ x: 0, y: 0 })
@@ -1122,6 +1130,29 @@ export function GanttFeatureList({ className }: { className?: string }) {
                   Add tasks to get started with your Gantt chart
                 </div>
               </div>
+            </div>
+          ) : groupConfig && groupedTasks ? (
+            <div>
+              {Object.entries(groupedTasks).map(([groupName, groupTasks]) => (
+                <React.Fragment key={groupName}>
+                  {/* Group header - matches table group header height */}
+                  {Object.keys(groupedTasks).length > 1 && (
+                    <div className="relative bg-muted/70 border-b" style={{ height: 'var(--task-row-height, 48px)' }}>
+                      <div className="absolute inset-y-0 left-0 right-0 flex items-center px-4 font-semibold text-sm">
+                        {groupName} ({groupTasks.length})
+                      </div>
+                    </div>
+                  )}
+                  {/* Tasks in this group */}
+                  {groupTasks.map((task) => (
+                    <div key={task.id} className="relative border-b" style={{ height: 'var(--task-row-height, 48px)' }}>
+                      <div className="absolute inset-y-0 left-0 right-0">
+                        <GanttFeatureItem task={task} dayWidth={dayWidth} />
+                      </div>
+                    </div>
+                  ))}
+                </React.Fragment>
+              ))}
             </div>
           ) : (
             <div>
