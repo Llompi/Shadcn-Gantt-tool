@@ -52,7 +52,7 @@ function GanttContent({
   const ganttRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [processedTasks, setProcessedTasks] = useState<Task[]>([])
-  const [groupedTasksForGantt, setGroupedTasksForGantt] = useState<Record<string, GanttTask[]> | null>(null)
+  const [groupedTasksForGantt, setGroupedTasksForGantt] = useState<Record<string, GanttTask[]> | undefined>(undefined)
 
   // Toolbar state
   const [searchQuery, setSearchQuery] = useState('')
@@ -106,7 +106,7 @@ function GanttContent({
 
       setGroupedTasksForGantt(groups)
     } else {
-      setGroupedTasksForGantt(null)
+      setGroupedTasksForGantt(undefined)
     }
   }, [groupConfig, onProcessedTasksChange])
 

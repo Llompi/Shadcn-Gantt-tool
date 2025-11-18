@@ -843,8 +843,8 @@ export function GanttFeatureList({
   groupedTasks,
 }: {
   className?: string
-  groupConfig?: { field: string } | null
-  groupedTasks?: Record<string, GanttTask[]>
+  groupConfig?: { field: string } | null | undefined
+  groupedTasks?: Record<string, GanttTask[]> | undefined
 }) {
   const { tasks, viewStart, viewEnd, timescale, setTimescale, setViewRange } = useGantt()
   const containerRef = React.useRef<HTMLDivElement>(null)
