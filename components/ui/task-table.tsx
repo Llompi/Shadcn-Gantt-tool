@@ -1,9 +1,10 @@
 "use client"
 
-import { useState, useRef } from "react"
+import React, { useState, useRef, useMemo, useEffect } from "react"
 import { Task, TaskStatus } from "@/types/task"
-import { Download, Upload, Trash2 } from "lucide-react"
+import { Download, Upload, Trash2, GripVertical, Eye, EyeOff, ChevronDown } from "lucide-react"
 import * as XLSX from "xlsx"
+import { TableToolbar, SortConfig, FilterConfig, GroupConfig } from "@/components/table-toolbar"
 
 export type TimescaleType = "day" | "week" | "month" | "quarter"
 
@@ -13,6 +14,7 @@ interface TaskTableProps {
   onTaskUpdate: (taskId: string, updates: Partial<Task>) => Promise<void>
   onTaskDelete?: (taskId: string) => Promise<void>
   onTasksImport: (tasks: Partial<Task>[]) => Promise<void>
+  onProcessedTasksChange?: (tasks: Task[]) => void
   viewStart?: Date
   viewEnd?: Date
   timescale?: TimescaleType
@@ -24,6 +26,7 @@ export function TaskTable({
   onTaskUpdate,
   onTaskDelete,
   onTasksImport,
+  onProcessedTasksChange,
   viewStart,
   viewEnd,
   timescale = "day",
@@ -31,10 +34,324 @@ export function TaskTable({
   const [editingCell, setEditingCell] = useState<{ taskId: string; field: string } | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // Table toolbar state
+  const [searchQuery, setSearchQuery] = useState('')
+  const [sortConfig, setSortConfig] = useState<SortConfig | null>(null)
+  const [filterConfigs, setFilterConfigs] = useState<FilterConfig[]>([])
+  const [groupConfig, setGroupConfig] = useState<GroupConfig | null>(null)
+
+  // Column visibility state
+  const [columnVisibility, setColumnVisibility] = useState({
+    name: true,
+    start: true,
+    end: true,
+    status: true,
+    owner: true,
+    group: true,
+    progress: true,
+  })
+  const [showColumnMenu, setShowColumnMenu] = useState(false)
+
+  // Available fields for filtering/sorting/grouping
+  const availableFields = [
+    { key: 'name', label: 'Name', type: 'string' as const },
+    { key: 'owner', label: 'Owner', type: 'string' as const },
+    { key: 'group', label: 'Group', type: 'string' as const },
+    { key: 'status', label: 'Status', type: 'string' as const },
+    { key: 'progress', label: 'Progress', type: 'number' as const },
+    { key: 'startAt', label: 'Start Date', type: 'date' as const },
+    { key: 'endAt', label: 'End Date', type: 'date' as const },
+  ]
+
+  // Apply search, filter, sort, and group to tasks
+  const processedTasks = useMemo(() => {
+    let result = [...tasks]
+
+    // Apply search
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase()
+      result = result.filter(task =>
+        task.name.toLowerCase().includes(query) ||
+        task.owner?.toLowerCase().includes(query) ||
+        task.group?.toLowerCase().includes(query) ||
+        task.status?.name.toLowerCase().includes(query)
+      )
+    }
+
+    // Apply filters
+    filterConfigs.forEach(filter => {
+      if (!filter.value) return
+
+      result = result.filter(task => {
+        const value = task[filter.field as keyof Task]
+        const filterValue = filter.value
+
+        if (value === undefined || value === null) return false
+
+        switch (filter.operator) {
+          case 'equals':
+            if (typeof value === 'object' && 'name' in value) {
+              return String(value.name).toLowerCase() === String(filterValue).toLowerCase()
+            }
+            return String(value).toLowerCase() === String(filterValue).toLowerCase()
+
+          case 'contains':
+            return String(value).toLowerCase().includes(String(filterValue).toLowerCase())
+
+          case 'greaterThan':
+            if (typeof value === 'number') {
+              return value > Number(filterValue)
+            }
+            if (value instanceof Date) {
+              return value > new Date(String(filterValue))
+            }
+            return false
+
+          case 'lessThan':
+            if (typeof value === 'number') {
+              return value < Number(filterValue)
+            }
+            if (value instanceof Date) {
+              return value < new Date(String(filterValue))
+            }
+            return false
+
+          default:
+            return true
+        }
+      })
+    })
+
+    // Apply sort
+    if (sortConfig) {
+      result.sort((a, b) => {
+        let aValue = a[sortConfig.field as keyof Task]
+        let bValue = b[sortConfig.field as keyof Task]
+
+        // Handle status object
+        if (sortConfig.field === 'status' && aValue && typeof aValue === 'object' && 'name' in aValue) {
+          aValue = aValue.name as string
+          bValue = (bValue && typeof bValue === 'object' && 'name' in bValue) ? bValue.name as string : ''
+        }
+
+        // Handle null/undefined
+        if (aValue === null || aValue === undefined) return 1
+        if (bValue === null || bValue === undefined) return -1
+
+        // Compare values
+        let comparison = 0
+        if (aValue instanceof Date && bValue instanceof Date) {
+          comparison = aValue.getTime() - bValue.getTime()
+        } else if (typeof aValue === 'number' && typeof bValue === 'number') {
+          comparison = aValue - bValue
+        } else {
+          comparison = String(aValue).localeCompare(String(bValue))
+        }
+
+        return sortConfig.direction === 'asc' ? comparison : -comparison
+      })
+    }
+
+    return result
+  }, [tasks, searchQuery, filterConfigs, sortConfig])
+
+  // Group tasks if grouping is enabled
+  const groupedTasks = useMemo(() => {
+    if (!groupConfig) return { ungrouped: processedTasks }
+
+    const groups: Record<string, Task[]> = {}
+
+    processedTasks.forEach(task => {
+      let groupKey = task[groupConfig.field as keyof Task]
+
+      // Handle status object
+      if (groupConfig.field === 'status' && groupKey && typeof groupKey === 'object' && 'name' in groupKey) {
+        groupKey = groupKey.name as string
+      }
+
+      const key = groupKey ? String(groupKey) : 'Ungrouped'
+      if (!groups[key]) {
+        groups[key] = []
+      }
+      groups[key].push(task)
+    })
+
+    return groups
+  }, [processedTasks, groupConfig])
+
+  // Notify parent when processed tasks change
+  useEffect(() => {
+    if (onProcessedTasksChange) {
+      onProcessedTasksChange(processedTasks)
+    }
+  }, [processedTasks, onProcessedTasksChange])
+
+  // Define column order for navigation
+  const columns = ['name', 'start', 'end', 'status', 'owner', 'group', 'progress']
+
+  // Navigate to next/previous cell (Excel-like)
+  const navigateCell = (direction: 'up' | 'down' | 'left' | 'right' | 'tab' | 'shiftTab') => {
+    if (!editingCell) return
+
+    const taskIndex = tasks.findIndex(t => t.id === editingCell.taskId)
+    const fieldMap: Record<string, string> = {
+      'name': 'name',
+      'startAt': 'start',
+      'start': 'startAt',
+      'endAt': 'end',
+      'end': 'endAt',
+      'status': 'status',
+      'owner': 'owner',
+      'group': 'group',
+      'progress': 'progress'
+    }
+    const currentField = fieldMap[editingCell.field] || editingCell.field
+    const colIndex = columns.indexOf(currentField)
+
+    let newTaskIndex = taskIndex
+    let newColIndex = colIndex
+
+    switch (direction) {
+      case 'up':
+        newTaskIndex = Math.max(0, taskIndex - 1)
+        break
+      case 'down':
+      case 'tab':
+        if (direction === 'down') {
+          newTaskIndex = Math.min(tasks.length - 1, taskIndex + 1)
+        } else {
+          // Tab: move right, wrap to next row
+          newColIndex = colIndex + 1
+          if (newColIndex >= columns.length) {
+            newColIndex = 0
+            newTaskIndex = Math.min(tasks.length - 1, taskIndex + 1)
+          }
+        }
+        break
+      case 'left':
+      case 'shiftTab':
+        if (direction === 'left') {
+          newColIndex = Math.max(0, colIndex - 1)
+        } else {
+          // Shift+Tab: move left, wrap to previous row
+          newColIndex = colIndex - 1
+          if (newColIndex < 0) {
+            newColIndex = columns.length - 1
+            newTaskIndex = Math.max(0, taskIndex - 1)
+          }
+        }
+        break
+      case 'right':
+        newColIndex = Math.min(columns.length - 1, colIndex + 1)
+        break
+    }
+
+    if (newTaskIndex >= 0 && newTaskIndex < tasks.length) {
+      const newField = columns[newColIndex]
+      const newFieldName = newField === 'start' ? 'startAt' : newField === 'end' ? 'endAt' : newField
+      setEditingCell({ taskId: tasks[newTaskIndex].id, field: newFieldName })
+    }
+  }
+
+  // Column width state
+  const [columnWidths, setColumnWidths] = useState({
+    name: 250,
+    start: 120,
+    end: 120,
+    status: 140,
+    owner: 150,
+    group: 150,
+    progress: 100,
+  })
+
+  // Column resizing state
+  const [resizingColumn, setResizingColumn] = useState<string | null>(null)
+  const [resizeStart, setResizeStart] = useState({ x: 0, width: 0 })
+
+  // Handle column resize start
+  const handleResizeStart = (e: React.MouseEvent, column: string) => {
+    e.preventDefault()
+    setResizingColumn(column)
+    setResizeStart({
+      x: e.clientX,
+      width: columnWidths[column as keyof typeof columnWidths],
+    })
+  }
+
+  // Handle column resize
+  React.useEffect(() => {
+    if (!resizingColumn) return
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const deltaX = e.clientX - resizeStart.x
+      const newWidth = Math.max(80, resizeStart.width + deltaX)
+
+      setColumnWidths(prev => ({
+        ...prev,
+        [resizingColumn]: newWidth,
+      }))
+    }
+
+    const handleMouseUp = () => {
+      setResizingColumn(null)
+    }
+
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [resizingColumn, resizeStart])
+
   const formatDate = (date: Date | undefined): string => {
     if (!date) return ""
     const d = new Date(date)
     return d.toISOString().split("T")[0]
+  }
+
+  // Centralized keyboard handler for all inputs
+  const handleKeyDown = (e: React.KeyboardEvent, taskId: string, field: keyof Task, getValue: () => string | TaskStatus) => {
+    // Handle Tab/Shift+Tab
+    if (e.key === 'Tab') {
+      e.preventDefault()
+      const value = getValue()
+      handleCellEdit(taskId, field, value)
+      navigateCell(e.shiftKey ? 'shiftTab' : 'tab')
+      return
+    }
+
+    // Handle Arrow keys
+    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+      e.preventDefault()
+      const value = getValue()
+      handleCellEdit(taskId, field, value)
+      const directionMap: Record<string, 'up' | 'down' | 'left' | 'right'> = {
+        'ArrowUp': 'up',
+        'ArrowDown': 'down',
+        'ArrowLeft': 'left',
+        'ArrowRight': 'right'
+      }
+      navigateCell(directionMap[e.key])
+      return
+    }
+
+    // Handle Enter (move down, like Excel)
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      const value = getValue()
+      handleCellEdit(taskId, field, value)
+      navigateCell('down')
+      return
+    }
+
+    // Handle Escape
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      setEditingCell(null)
+      return
+    }
   }
 
   const handleCellEdit = async (taskId: string, field: keyof Task, value: string | number | TaskStatus) => {
@@ -570,8 +887,23 @@ export function TaskTable({
   }
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Toolbar */}
+    <div className="flex flex-col h-full" style={{ '--task-row-height': '48px' } as React.CSSProperties}>
+      {/* Table Toolbar with Search, Filter, Sort, Group */}
+      <div className="p-3 border-b bg-background">
+        <TableToolbar
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          sortConfig={sortConfig}
+          onSortChange={setSortConfig}
+          filterConfigs={filterConfigs}
+          onFilterChange={setFilterConfigs}
+          groupConfig={groupConfig}
+          onGroupChange={setGroupConfig}
+          availableFields={availableFields}
+        />
+      </div>
+
+      {/* Export/Import Toolbar */}
       <div className="flex gap-2 p-2 border-b bg-muted/50">
         <button
           onClick={exportToCSV}
@@ -604,104 +936,266 @@ export function TaskTable({
           onChange={handleFileImport}
           className="hidden"
         />
+
+        {/* Column Visibility Dropdown */}
+        <div className="relative ml-auto">
+          <button
+            onClick={() => setShowColumnMenu(!showColumnMenu)}
+            className="flex items-center gap-1 px-3 py-1.5 text-sm border rounded hover:bg-accent transition-colors"
+            title="Show/Hide Columns"
+          >
+            <Eye className="h-4 w-4" />
+            Columns
+            <ChevronDown className="h-3 w-3" />
+          </button>
+
+          {showColumnMenu && (
+            <div className="absolute right-0 top-full mt-1 w-48 bg-background border rounded-lg shadow-lg z-20 p-2">
+              <div className="text-xs font-semibold text-muted-foreground mb-2 px-2">Show/Hide Columns</div>
+              {Object.entries(columnVisibility).map(([col, visible]) => (
+                <label
+                  key={col}
+                  className="flex items-center gap-2 px-2 py-1.5 hover:bg-accent rounded cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    checked={visible}
+                    onChange={(e) => setColumnVisibility(prev => ({ ...prev, [col]: e.target.checked }))}
+                    className="rounded border-gray-300"
+                  />
+                  <span className="text-sm capitalize">{col === 'start' ? 'Start Date' : col === 'end' ? 'End Date' : col}</span>
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Table */}
       <div className="flex-1 overflow-auto">
-        <table className="w-full text-sm">
-          <thead className="sticky top-0 bg-muted z-10">
-            <tr>
-              <th className="px-2 py-2 text-left font-semibold border-b">Name</th>
-              <th className="px-2 py-2 text-left font-semibold border-b">Start</th>
-              <th className="px-2 py-2 text-left font-semibold border-b">End</th>
-              <th className="px-2 py-2 text-left font-semibold border-b">Status</th>
-              <th className="px-2 py-2 text-left font-semibold border-b">Owner</th>
-              <th className="px-2 py-2 text-left font-semibold border-b">Group</th>
-              <th className="px-2 py-2 text-left font-semibold border-b">Progress</th>
+        <table className="w-full text-sm" style={{ borderCollapse: 'collapse', borderSpacing: 0 }}>
+          <thead className="sticky top-0 bg-muted z-10" style={{ height: '80px' }}>
+            <tr style={{ height: '80px', margin: 0, padding: 0 }}>
+              {columnVisibility.name && (
+              <th className="px-2 py-2 text-left font-semibold border-b relative group" style={{ width: columnWidths.name }}>
+                <div className="flex items-center justify-between">
+                  <span>Name</span>
+                  <div
+                    className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                    onMouseDown={(e) => handleResizeStart(e, 'name')}
+                  >
+                    <GripVertical className="w-3 h-3 text-primary" />
+                  </div>
+                </div>
+              </th>
+              )}
+              {columnVisibility.start && (
+              <th className="px-2 py-2 text-left font-semibold border-b relative group" style={{ width: columnWidths.start }}>
+                <div className="flex items-center justify-between">
+                  <span>Start</span>
+                  <div
+                    className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                    onMouseDown={(e) => handleResizeStart(e, 'start')}
+                  >
+                    <GripVertical className="w-3 h-3 text-primary" />
+                  </div>
+                </div>
+              </th>
+              )}
+              {columnVisibility.end && (
+              <th className="px-2 py-2 text-left font-semibold border-b relative group" style={{ width: columnWidths.end }}>
+                <div className="flex items-center justify-between">
+                  <span>End</span>
+                  <div
+                    className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                    onMouseDown={(e) => handleResizeStart(e, 'end')}
+                  >
+                    <GripVertical className="w-3 h-3 text-primary" />
+                  </div>
+                </div>
+              </th>
+              )}
+              {columnVisibility.status && (
+              <th className="px-2 py-2 text-left font-semibold border-b relative group" style={{ width: columnWidths.status }}>
+                <div className="flex items-center justify-between">
+                  <span>Status</span>
+                  <div
+                    className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                    onMouseDown={(e) => handleResizeStart(e, 'status')}
+                  >
+                    <GripVertical className="w-3 h-3 text-primary" />
+                  </div>
+                </div>
+              </th>
+              )}
+              {columnVisibility.owner && (
+              <th className="px-2 py-2 text-left font-semibold border-b relative group" style={{ width: columnWidths.owner }}>
+                <div className="flex items-center justify-between">
+                  <span>Owner</span>
+                  <div
+                    className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                    onMouseDown={(e) => handleResizeStart(e, 'owner')}
+                  >
+                    <GripVertical className="w-3 h-3 text-primary" />
+                  </div>
+                </div>
+              </th>
+              )}
+              {columnVisibility.group && (
+              <th className="px-2 py-2 text-left font-semibold border-b relative group" style={{ width: columnWidths.group }}>
+                <div className="flex items-center justify-between">
+                  <span>Group</span>
+                  <div
+                    className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                    onMouseDown={(e) => handleResizeStart(e, 'group')}
+                  >
+                    <GripVertical className="w-3 h-3 text-primary" />
+                  </div>
+                </div>
+              </th>
+              )}
+              {columnVisibility.progress && (
+              <th className="px-2 py-2 text-left font-semibold border-b relative group" style={{ width: columnWidths.progress }}>
+                <div className="flex items-center justify-between">
+                  <span>Progress</span>
+                  <div
+                    className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                    onMouseDown={(e) => handleResizeStart(e, 'progress')}
+                  >
+                    <GripVertical className="w-3 h-3 text-primary" />
+                  </div>
+                </div>
+              </th>
+              )}
               {onTaskDelete && (
                 <th className="px-2 py-2 text-left font-semibold border-b w-10"></th>
               )}
             </tr>
           </thead>
           <tbody>
-            {tasks.map((task) => (
-              <tr key={task.id} className="border-b hover:bg-muted/50 h-12">
-                <td className="px-2 py-1.5 align-middle">
+            {/* Render grouped or ungrouped tasks */}
+            {Object.entries(groupedTasks).map(([groupName, groupTasks]) => (
+              <React.Fragment key={groupName}>
+                {/* Group header if grouping is active */}
+                {groupConfig && Object.keys(groupedTasks).length > 1 && (
+                  <tr className="bg-muted/70">
+                    <td colSpan={onTaskDelete ? 8 : 7} className="px-2 py-2 font-semibold text-sm">
+                      {groupName} ({groupTasks.length})
+                    </td>
+                  </tr>
+                )}
+
+                {/* Tasks in this group */}
+                {groupTasks.map((task) => (
+              <tr
+                key={task.id}
+                className="border-b hover:bg-muted/50"
+                style={{
+                  height: 'var(--task-row-height, 48px)',
+                  minHeight: 'var(--task-row-height, 48px)',
+                  maxHeight: 'var(--task-row-height, 48px)',
+                  margin: 0,
+                  padding: 0,
+                  boxSizing: 'border-box'
+                }}
+              >
+                {columnVisibility.name && (
+                <td className="px-2 align-middle" style={{
+                  height: 'var(--task-row-height, 48px)',
+                  minHeight: 'var(--task-row-height, 48px)',
+                  maxHeight: 'var(--task-row-height, 48px)',
+                  lineHeight: '1',
+                  overflow: 'hidden',
+                  boxSizing: 'border-box',
+                  padding: '0 0.5rem'
+                }}>
                   {editingCell?.taskId === task.id && editingCell.field === "name" ? (
                     <input
                       type="text"
                       defaultValue={task.name}
                       autoFocus
                       onBlur={(e) => handleCellEdit(task.id, "name", e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          handleCellEdit(task.id, "name", e.currentTarget.value)
-                        } else if (e.key === "Escape") {
-                          setEditingCell(null)
-                        }
-                      }}
-                      className="w-full px-1 py-0.5 border rounded focus:outline-none focus:ring-1 focus:ring-primary"
+                      onKeyDown={(e) => handleKeyDown(e, task.id, "name", () => e.currentTarget.value)}
+                      className="w-full h-8 px-2 py-1 bg-background border border-primary rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary transition-all"
                     />
                   ) : (
                     <div
                       onClick={() => setEditingCell({ taskId: task.id, field: "name" })}
-                      className="cursor-text px-1 py-0.5 hover:bg-accent/50 rounded"
+                      className="flex items-center cursor-text px-2 hover:bg-accent/30 rounded-md transition-colors h-full"
                     >
-                      {task.name}
+                      {task.name || <span className="text-muted-foreground text-xs">Click to edit</span>}
                     </div>
                   )}
                 </td>
-                <td className="px-2 py-1.5 align-middle">
+                )}
+                {columnVisibility.start && (
+                <td className="px-2 align-middle" style={{
+                  height: 'var(--task-row-height, 48px)',
+                  minHeight: 'var(--task-row-height, 48px)',
+                  maxHeight: 'var(--task-row-height, 48px)',
+                  lineHeight: '1',
+                  overflow: 'hidden',
+                  boxSizing: 'border-box',
+                  padding: '0 0.5rem'
+                }}>
                   {editingCell?.taskId === task.id && editingCell.field === "startAt" ? (
                     <input
                       type="date"
                       defaultValue={formatDate(task.startAt)}
                       autoFocus
                       onBlur={(e) => handleCellEdit(task.id, "startAt", e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          handleCellEdit(task.id, "startAt", e.currentTarget.value)
-                        } else if (e.key === "Escape") {
-                          setEditingCell(null)
-                        }
-                      }}
-                      className="w-full px-1 py-0.5 border rounded focus:outline-none focus:ring-1 focus:ring-primary"
+                      onKeyDown={(e) => handleKeyDown(e, task.id, "startAt", () => e.currentTarget.value)}
+                      className="w-full h-8 px-2 py-1 bg-background border border-primary rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary transition-all"
                     />
                   ) : (
                     <div
                       onClick={() => setEditingCell({ taskId: task.id, field: "startAt" })}
-                      className="cursor-text px-1 py-0.5 hover:bg-accent/50 rounded"
+                      className="flex items-center cursor-text px-2 hover:bg-accent/30 rounded-md transition-colors h-full"
                     >
-                      {formatDate(task.startAt)}
+                      {formatDate(task.startAt) || <span className="text-muted-foreground text-xs">Click to edit</span>}
                     </div>
                   )}
                 </td>
-                <td className="px-2 py-1.5 align-middle">
+                )}
+                {columnVisibility.end && (
+                <td className="px-2 align-middle" style={{
+                  height: 'var(--task-row-height, 48px)',
+                  minHeight: 'var(--task-row-height, 48px)',
+                  maxHeight: 'var(--task-row-height, 48px)',
+                  lineHeight: '1',
+                  overflow: 'hidden',
+                  boxSizing: 'border-box',
+                  padding: '0 0.5rem'
+                }}>
                   {editingCell?.taskId === task.id && editingCell.field === "endAt" ? (
                     <input
                       type="date"
                       defaultValue={formatDate(task.endAt)}
                       autoFocus
                       onBlur={(e) => handleCellEdit(task.id, "endAt", e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          handleCellEdit(task.id, "endAt", e.currentTarget.value)
-                        } else if (e.key === "Escape") {
-                          setEditingCell(null)
-                        }
-                      }}
-                      className="w-full px-1 py-0.5 border rounded focus:outline-none focus:ring-1 focus:ring-primary"
+                      onKeyDown={(e) => handleKeyDown(e, task.id, "endAt", () => e.currentTarget.value)}
+                      className="w-full h-8 px-2 py-1 bg-background border border-primary rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary transition-all"
                     />
                   ) : (
                     <div
                       onClick={() => setEditingCell({ taskId: task.id, field: "endAt" })}
-                      className="cursor-text px-1 py-0.5 hover:bg-accent/50 rounded"
+                      className="flex items-center cursor-text px-2 hover:bg-accent/30 rounded-md transition-colors h-full"
                     >
-                      {formatDate(task.endAt)}
+                      {formatDate(task.endAt) || <span className="text-muted-foreground text-xs">Click to edit</span>}
                     </div>
                   )}
                 </td>
-                <td className="px-2 py-1.5 align-middle">
+                )}
+                {columnVisibility.status && (
+                <td className="px-2 align-middle" style={{
+                  height: 'var(--task-row-height, 48px)',
+                  minHeight: 'var(--task-row-height, 48px)',
+                  maxHeight: 'var(--task-row-height, 48px)',
+                  lineHeight: '1',
+                  overflow: 'hidden',
+                  boxSizing: 'border-box',
+                  padding: '0 0.5rem'
+                }}>
                   {editingCell?.taskId === task.id && editingCell.field === "status" ? (
                     <select
                       defaultValue={task.status?.id}
@@ -710,15 +1204,11 @@ export function TaskTable({
                         const status = statuses.find((s) => s.id === e.target.value)
                         if (status) handleCellEdit(task.id, "status", status)
                       }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          const status = statuses.find((s) => s.id === e.currentTarget.value)
-                          if (status) handleCellEdit(task.id, "status", status)
-                        } else if (e.key === "Escape") {
-                          setEditingCell(null)
-                        }
-                      }}
-                      className="w-full px-1 py-0.5 border rounded focus:outline-none focus:ring-1 focus:ring-primary"
+                      onKeyDown={(e) => handleKeyDown(e, task.id, "status", () => {
+                        const status = statuses.find((s) => s.id === e.currentTarget.value)
+                        return status || task.status?.id || ''
+                      })}
+                      className="w-full h-8 px-2 py-1 bg-background border border-primary rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary transition-all cursor-pointer"
                     >
                       <option value="">None</option>
                       {statuses.map((status) => (
@@ -730,9 +1220,9 @@ export function TaskTable({
                   ) : (
                     <div
                       onClick={() => setEditingCell({ taskId: task.id, field: "status" })}
-                      className="cursor-text px-1 py-0.5 hover:bg-accent/50 rounded flex items-center gap-1.5"
+                      className="flex items-center cursor-text px-2 hover:bg-accent/30 rounded-md transition-colors gap-1.5 h-full"
                     >
-                      {task.status && (
+                      {task.status ? (
                         <>
                           <div
                             className="w-3 h-3 rounded"
@@ -740,61 +1230,81 @@ export function TaskTable({
                           />
                           <span>{task.status.name}</span>
                         </>
+                      ) : (
+                        <span className="text-muted-foreground text-xs">Click to edit</span>
                       )}
                     </div>
                   )}
                 </td>
-                <td className="px-2 py-1.5 align-middle">
+                )}
+                {columnVisibility.owner && (
+                <td className="px-2 align-middle" style={{
+                  height: 'var(--task-row-height, 48px)',
+                  minHeight: 'var(--task-row-height, 48px)',
+                  maxHeight: 'var(--task-row-height, 48px)',
+                  lineHeight: '1',
+                  overflow: 'hidden',
+                  boxSizing: 'border-box',
+                  padding: '0 0.5rem'
+                }}>
                   {editingCell?.taskId === task.id && editingCell.field === "owner" ? (
                     <input
                       type="text"
                       defaultValue={task.owner || ""}
                       autoFocus
                       onBlur={(e) => handleCellEdit(task.id, "owner", e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          handleCellEdit(task.id, "owner", e.currentTarget.value)
-                        } else if (e.key === "Escape") {
-                          setEditingCell(null)
-                        }
-                      }}
-                      className="w-full px-1 py-0.5 border rounded focus:outline-none focus:ring-1 focus:ring-primary"
+                      onKeyDown={(e) => handleKeyDown(e, task.id, "owner", () => e.currentTarget.value)}
+                      className="w-full h-8 px-2 py-1 bg-background border border-primary rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary transition-all"
                     />
                   ) : (
                     <div
                       onClick={() => setEditingCell({ taskId: task.id, field: "owner" })}
-                      className="cursor-text px-1 py-0.5 hover:bg-accent/50 rounded"
+                      className="flex items-center cursor-text px-2 hover:bg-accent/30 rounded-md transition-colors h-full"
                     >
-                      {task.owner || ""}
+                      {task.owner || <span className="text-muted-foreground text-xs">Click to edit</span>}
                     </div>
                   )}
                 </td>
-                <td className="px-2 py-1.5 align-middle">
+                )}
+                {columnVisibility.group && (
+                <td className="px-2 align-middle" style={{
+                  height: 'var(--task-row-height, 48px)',
+                  minHeight: 'var(--task-row-height, 48px)',
+                  maxHeight: 'var(--task-row-height, 48px)',
+                  lineHeight: '1',
+                  overflow: 'hidden',
+                  boxSizing: 'border-box',
+                  padding: '0 0.5rem'
+                }}>
                   {editingCell?.taskId === task.id && editingCell.field === "group" ? (
                     <input
                       type="text"
                       defaultValue={task.group || ""}
                       autoFocus
                       onBlur={(e) => handleCellEdit(task.id, "group", e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          handleCellEdit(task.id, "group", e.currentTarget.value)
-                        } else if (e.key === "Escape") {
-                          setEditingCell(null)
-                        }
-                      }}
-                      className="w-full px-1 py-0.5 border rounded focus:outline-none focus:ring-1 focus:ring-primary"
+                      onKeyDown={(e) => handleKeyDown(e, task.id, "group", () => e.currentTarget.value)}
+                      className="w-full h-8 px-2 py-1 bg-background border border-primary rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary transition-all"
                     />
                   ) : (
                     <div
                       onClick={() => setEditingCell({ taskId: task.id, field: "group" })}
-                      className="cursor-text px-1 py-0.5 hover:bg-accent/50 rounded"
+                      className="flex items-center cursor-text px-2 hover:bg-accent/30 rounded-md transition-colors h-full"
                     >
-                      {task.group || ""}
+                      {task.group || <span className="text-muted-foreground text-xs">Click to edit</span>}
                     </div>
                   )}
                 </td>
-                <td className="px-2 py-1.5 align-middle">
+                )}
+                {columnVisibility.progress && (
+                <td className="px-2 align-middle" style={{
+                  height: 'var(--task-row-height, 48px)',
+                  minHeight: 'var(--task-row-height, 48px)',
+                  maxHeight: 'var(--task-row-height, 48px)',
+                  lineHeight: '1',
+                  overflow: 'hidden',
+                  boxSizing: 'border-box',
+                  padding: '0 0.5rem'
+                }}>
                   {editingCell?.taskId === task.id && editingCell.field === "progress" ? (
                     <input
                       type="number"
@@ -803,26 +1313,29 @@ export function TaskTable({
                       defaultValue={task.progress || 0}
                       autoFocus
                       onBlur={(e) => handleCellEdit(task.id, "progress", e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          handleCellEdit(task.id, "progress", e.currentTarget.value)
-                        } else if (e.key === "Escape") {
-                          setEditingCell(null)
-                        }
-                      }}
-                      className="w-full px-1 py-0.5 border rounded focus:outline-none focus:ring-1 focus:ring-primary"
+                      onKeyDown={(e) => handleKeyDown(e, task.id, "progress", () => e.currentTarget.value)}
+                      className="w-full h-8 px-2 py-1 bg-background border border-primary rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary transition-all"
                     />
                   ) : (
                     <div
                       onClick={() => setEditingCell({ taskId: task.id, field: "progress" })}
-                      className="cursor-text px-1 py-0.5 hover:bg-accent/50 rounded"
+                      className="flex items-center cursor-text px-2 hover:bg-accent/30 rounded-md transition-colors h-full"
                     >
-                      {task.progress || 0}%
+                      {task.progress !== undefined ? `${task.progress}%` : <span className="text-muted-foreground text-xs">Click to edit</span>}
                     </div>
                   )}
                 </td>
+                )}
                 {onTaskDelete && (
-                  <td className="px-2 py-1.5 align-middle">
+                  <td className="px-2 align-middle" style={{
+                  height: 'var(--task-row-height, 48px)',
+                  minHeight: 'var(--task-row-height, 48px)',
+                  maxHeight: 'var(--task-row-height, 48px)',
+                  lineHeight: '1',
+                  overflow: 'hidden',
+                  boxSizing: 'border-box',
+                  padding: '0 0.5rem'
+                }}>
                     <button
                       onClick={() => handleDelete(task.id)}
                       className="p-1 hover:bg-red-100 hover:text-red-600 rounded transition-colors"
@@ -833,6 +1346,8 @@ export function TaskTable({
                   </td>
                 )}
               </tr>
+                ))}
+              </React.Fragment>
             ))}
           </tbody>
         </table>

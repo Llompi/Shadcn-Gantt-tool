@@ -4,48 +4,100 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Modern iOS-inspired light theme */
+    --background: 210 20% 98%;
+    --foreground: 222 47% 11%;
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 222 47% 11%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
-    --radius: 0.5rem;
+    --popover-foreground: 222 47% 11%;
+
+    /* Primary: Modern blue (iOS blue) */
+    --primary: 211 100% 50%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary: Subtle gray */
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
+
+    /* Muted: Light gray backgrounds */
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+
+    /* Accent: Vibrant purple */
+    --accent: 271 91% 65%;
+    --accent-foreground: 0 0% 100%;
+
+    /* Destructive: Modern red */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Borders and inputs */
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 211 100% 50%;
+
+    /* Border radius */
+    --radius: 0.75rem;
+
+    /* Success: Green */
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+
+    /* Warning: Orange */
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+
+    /* Info: Cyan */
+    --info: 199 89% 48%;
+    --info-foreground: 0 0% 100%;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+    /* Modern dark theme with better contrast */
+    --background: 224 71% 4%;
+    --foreground: 213 31% 91%;
+    --card: 224 71% 6%;
+    --card-foreground: 213 31% 91%;
+    --popover: 224 71% 6%;
+    --popover-foreground: 213 31% 91%;
+
+    /* Primary: Lighter blue for dark mode */
+    --primary: 211 100% 60%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary: Dark gray */
+    --secondary: 222 47% 11%;
+    --secondary-foreground: 213 31% 91%;
+
+    /* Muted: Darker backgrounds */
+    --muted: 223 47% 11%;
+    --muted-foreground: 215 20% 65%;
+
+    /* Accent: Brighter purple for dark mode */
+    --accent: 271 91% 75%;
+    --accent-foreground: 224 71% 4%;
+
+    /* Destructive: Lighter red for dark mode */
+    --destructive: 0 84% 65%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Borders and inputs */
+    --border: 215 27% 17%;
+    --input: 215 27% 17%;
+    --ring: 211 100% 60%;
+
+    /* Success: Lighter green */
+    --success: 142 76% 45%;
+    --success-foreground: 0 0% 100%;
+
+    /* Warning: Lighter orange */
+    --warning: 38 92% 60%;
+    --warning-foreground: 0 0% 100%;
+
+    /* Info: Lighter cyan */
+    --info: 199 89% 58%;
+    --info-foreground: 0 0% 100%;
   }
 }
 
@@ -53,7 +105,152 @@
   * {
     @apply border-border;
   }
+
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  /* Smooth scrolling */
+  html {
+    scroll-behavior: smooth;
+  }
+
+  /* Better focus outlines */
+  *:focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+}
+
+@layer components {
+  /* Glass morphism utilities */
+  .glass-panel {
+    @apply glass rounded-2xl shadow-glass;
+  }
+
+  .glass-panel-strong {
+    @apply glass-strong rounded-2xl shadow-glass-lg;
+  }
+
+  /* Modern card styles */
+  .modern-card {
+    @apply rounded-2xl bg-card border border-border/50 shadow-smooth p-6 transition-all duration-300 hover:shadow-smooth-lg;
+  }
+
+  /* Gradient backgrounds */
+  .gradient-mesh {
+    background: radial-gradient(at 27% 37%, hsla(215, 98%, 61%, 0.15) 0px, transparent 50%),
+      radial-gradient(at 97% 21%, hsla(125, 98%, 72%, 0.1) 0px, transparent 50%),
+      radial-gradient(at 52% 99%, hsla(354, 98%, 61%, 0.1) 0px, transparent 50%),
+      radial-gradient(at 10% 29%, hsla(256, 96%, 67%, 0.15) 0px, transparent 50%),
+      radial-gradient(at 97% 96%, hsla(38, 60%, 74%, 0.1) 0px, transparent 50%),
+      radial-gradient(at 33% 50%, hsla(222, 67%, 73%, 0.1) 0px, transparent 50%),
+      radial-gradient(at 79% 53%, hsla(343, 68%, 79%, 0.1) 0px, transparent 50%);
+  }
+
+  /* Floating action button */
+  .fab {
+    @apply fixed bottom-8 right-8 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 flex items-center justify-center z-50;
+  }
+
+  /* Modern input styles */
+  .modern-input {
+    @apply w-full rounded-xl border border-border bg-background px-4 py-3 text-sm transition-all duration-200 focus:ring-2 focus:ring-ring focus:border-transparent placeholder:text-muted-foreground;
+  }
+
+  /* Animated gradient text */
+  .gradient-text {
+    @apply bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent animate-shimmer;
+    background-size: 200% auto;
+  }
+}
+
+@layer utilities {
+  /* iOS-style blur */
+  .ios-blur {
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+  }
+
+  /* Animate on scroll */
+  .animate-on-scroll {
+    @apply opacity-0 translate-y-8 transition-all duration-700;
+  }
+
+  .animate-on-scroll.visible {
+    @apply opacity-100 translate-y-0;
+  }
+
+  /* Modern shadows */
+  .shadow-modern {
+    box-shadow:
+      0 1px 2px 0 rgba(0, 0, 0, 0.05),
+      0 1px 3px 0 rgba(0, 0, 0, 0.1);
+  }
+
+  .shadow-modern-lg {
+    box-shadow:
+      0 4px 6px -1px rgba(0, 0, 0, 0.1),
+      0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  }
+
+  /* Apple-style smooth scrollbars */
+  .smooth-scrollbar::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+  }
+
+  .smooth-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .smooth-scrollbar::-webkit-scrollbar-thumb {
+    background: hsla(var(--foreground), 0.15);
+    border-radius: 100px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+    transition: background 0.2s ease;
+  }
+
+  .smooth-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: hsla(var(--foreground), 0.25);
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+
+  .smooth-scrollbar::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  /* For Firefox */
+  .smooth-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: hsla(var(--foreground), 0.15) transparent;
+  }
+
+  /* Gantt-specific minimal scrollbar */
+  .gantt-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .gantt-scrollbar::-webkit-scrollbar-track {
+    background: hsla(var(--muted), 0.3);
+    border-radius: 4px;
+  }
+
+  .gantt-scrollbar::-webkit-scrollbar-thumb {
+    background: hsla(var(--primary), 0.3);
+    border-radius: 4px;
+    transition: background 0.2s ease;
+  }
+
+  .gantt-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: hsla(var(--primary), 0.5);
+  }
+
+  .gantt-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: hsla(var(--primary), 0.3) hsla(var(--muted), 0.3);
   }
 }
