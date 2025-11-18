@@ -18,6 +18,7 @@ interface TaskTableProps {
   viewStart?: Date
   viewEnd?: Date
   timescale?: TimescaleType
+  toolbarRef?: React.RefObject<HTMLDivElement>
 }
 
 export function TaskTable({
@@ -30,6 +31,7 @@ export function TaskTable({
   viewStart,
   viewEnd,
   timescale = "day",
+  toolbarRef,
 }: TaskTableProps) {
   const [editingCell, setEditingCell] = useState<{ taskId: string; field: string } | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -888,23 +890,25 @@ export function TaskTable({
 
   return (
     <div className="flex flex-col h-full" style={{ '--task-row-height': '48px' } as React.CSSProperties}>
-      {/* Table Toolbar with Search, Filter, Sort, Group */}
-      <div className="p-3 border-b bg-background">
-        <TableToolbar
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          sortConfig={sortConfig}
-          onSortChange={setSortConfig}
-          filterConfigs={filterConfigs}
-          onFilterChange={setFilterConfigs}
-          groupConfig={groupConfig}
-          onGroupChange={setGroupConfig}
-          availableFields={availableFields}
-        />
-      </div>
+      {/* Combined Toolbars Container - measured for Gantt sync */}
+      <div ref={toolbarRef} className="shrink-0">
+        {/* Table Toolbar with Search, Filter, Sort, Group */}
+        <div className="p-3 border-b bg-background">
+          <TableToolbar
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            sortConfig={sortConfig}
+            onSortChange={setSortConfig}
+            filterConfigs={filterConfigs}
+            onFilterChange={setFilterConfigs}
+            groupConfig={groupConfig}
+            onGroupChange={setGroupConfig}
+            availableFields={availableFields}
+          />
+        </div>
 
-      {/* Export/Import Toolbar */}
-      <div className="flex gap-2 p-2 border-b bg-muted/50">
+        {/* Export/Import Toolbar */}
+        <div className="flex gap-2 p-2 border-b bg-muted/50">
         <button
           onClick={exportToCSV}
           className="flex items-center gap-1 px-3 py-1.5 text-sm border rounded hover:bg-accent transition-colors"
@@ -969,6 +973,7 @@ export function TaskTable({
             </div>
           )}
         </div>
+      </div>
       </div>
 
       {/* Table */}

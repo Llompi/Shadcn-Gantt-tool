@@ -47,6 +47,25 @@ function GanttContent({
   const { viewStart, viewEnd, timescale } = useGantt()
   const tableRef = useRef<HTMLDivElement>(null)
   const ganttRef = useRef<HTMLDivElement>(null)
+  const toolbarRef = useRef<HTMLDivElement>(null)
+  const [toolbarHeight, setToolbarHeight] = useState(0)
+
+  // Sync toolbar height to Gantt side using ResizeObserver
+  useEffect(() => {
+    if (!toolbarRef.current) return
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setToolbarHeight(entry.target.scrollHeight)
+      }
+    })
+
+    resizeObserver.observe(toolbarRef.current)
+
+    return () => {
+      resizeObserver.disconnect()
+    }
+  }, [])
 
   return (
     <div className="space-y-4">
@@ -63,7 +82,7 @@ function GanttContent({
       <PanelGroup direction="horizontal" className="min-h-[600px] border rounded-lg overflow-hidden shadow-lg">
         {/* Task Table Panel */}
         <Panel defaultSize={35} minSize={20} maxSize={60}>
-          <div ref={tableRef} className="h-full overflow-hidden bg-background">
+          <div ref={tableRef} className="h-full overflow-hidden bg-background flex flex-col">
             <TaskTable
               tasks={tasks}
               statuses={statuses}
@@ -74,6 +93,7 @@ function GanttContent({
               viewStart={viewStart}
               viewEnd={viewEnd}
               timescale={timescale}
+              toolbarRef={toolbarRef}
             />
           </div>
         </Panel>
@@ -87,7 +107,12 @@ function GanttContent({
 
         {/* Gantt Chart Panel */}
         <Panel defaultSize={65} minSize={40}>
-          <div ref={ganttRef} className="h-full overflow-hidden bg-background">
+          <div ref={ganttRef} className="h-full overflow-hidden bg-background flex flex-col">
+            {/* Matching spacer to sync with TableToolbar height */}
+            <div
+              style={{ height: `${toolbarHeight}px`, minHeight: `${toolbarHeight}px` }}
+              className="transition-all duration-200 shrink-0"
+            />
             <GanttHeader />
             <GanttFeatureList />
           </div>
