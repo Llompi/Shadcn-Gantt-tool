@@ -35,6 +35,7 @@ interface GanttContextValue {
   onTaskDelete?: (taskId: string) => Promise<void>
   setViewRange: (start: Date, end: Date) => void
   setTimescale: (timescale: TimescaleType) => void
+  scrollCenterDateRef: React.MutableRefObject<Date | null>
 }
 
 const GanttContext = React.createContext<GanttContextValue | null>(null)
@@ -124,6 +125,9 @@ export function GanttProvider({
   )
   const [timescale, setTimescale] = React.useState<TimescaleType>(defaultTimescale)
 
+  // Ref to track the scroll center date during zoom operations
+  const scrollCenterDateRef = React.useRef<Date | null>(null)
+
   const setViewRange = React.useCallback((start: Date, end: Date) => {
     setViewStart(start)
     setViewEnd(end)
@@ -131,8 +135,8 @@ export function GanttProvider({
 
   // Adjust view range when timescale changes to preserve current viewport
   React.useEffect(() => {
-    // Calculate the center of the current viewport
-    const viewportCenter = new Date((viewStart.getTime() + viewEnd.getTime()) / 2)
+    // Use the saved scroll center date if available (from zoom), otherwise use viewport midpoint
+    const viewportCenter = scrollCenterDateRef.current || new Date((viewStart.getTime() + viewEnd.getTime()) / 2)
 
     let newStart: Date
     let newEnd: Date
@@ -185,6 +189,7 @@ export function GanttProvider({
         onTaskDelete,
         setViewRange,
         setTimescale,
+        scrollCenterDateRef,
       }}
     >
       {children}
@@ -846,7 +851,7 @@ export function GanttFeatureList({
   groupConfig?: { field: string } | null | undefined
   groupedTasks?: Record<string, GanttTask[]> | undefined
 }) {
-  const { tasks, viewStart, viewEnd, timescale, setTimescale, setViewRange } = useGantt()
+  const { tasks, viewStart, viewEnd, timescale, setTimescale, scrollCenterDateRef } = useGantt()
   const containerRef = React.useRef<HTMLDivElement>(null)
   const scrollVelocityRef = React.useRef({ x: 0, y: 0 })
   const lastScrollRef = React.useRef({ x: 0, y: 0, time: 0 })
@@ -1010,7 +1015,6 @@ export function GanttFeatureList({
   // Track zoom accumulation for smooth zooming and scroll position for zoom preservation
   const zoomAccumulatorRef = React.useRef(0)
   const zoomTimeoutRef = React.useRef<NodeJS.Timeout | null>(null)
-  const scrollCenterDateRef = React.useRef<Date | null>(null)
   const previousTimescaleRef = React.useRef<TimescaleType>(timescale)
   const [isZooming, setIsZooming] = React.useState(false)
   const zoomRestoreTimeoutRef = React.useRef<NodeJS.Timeout | null>(null)
@@ -1127,30 +1131,36 @@ export function GanttFeatureList({
       clearTimeout(zoomRestoreTimeoutRef.current)
     }
 
-    // Use setTimeout with longer delay to ensure all renders are complete
-    zoomRestoreTimeoutRef.current = setTimeout(() => {
-      if (!container || !centerDate) return
+    // Use multiple requestAnimationFrame calls to ensure all renders and layouts are complete
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (!container || !centerDate) return
 
-      // Calculate where the saved center date should be in the new view
-      const daysFromStart = (centerDate.getTime() - viewStart.getTime()) / (24 * 60 * 60 * 1000)
-      const centerPositionPx = daysFromStart * dayWidth
+          // Calculate where the saved center date should be in the new view
+          const daysFromStart = (centerDate.getTime() - viewStart.getTime()) / (24 * 60 * 60 * 1000)
+          const centerPositionPx = daysFromStart * dayWidth
 
-      // Scroll to keep that date centered (instant, no smooth scroll)
-      const scrollPosition = centerPositionPx - container.clientWidth / 2
-      container.scrollLeft = Math.max(0, scrollPosition)
+          // Scroll to keep that date centered (instant, no smooth scroll)
+          const scrollPosition = centerPositionPx - container.clientWidth / 2
+          container.scrollLeft = Math.max(0, scrollPosition)
 
-      // Clear the saved date, update previous timescale, and end zooming state
-      scrollCenterDateRef.current = null
-      previousTimescaleRef.current = timescale
-      setIsZooming(false)
-    }, 50) // 50ms delay to ensure DOM is fully settled
+          // Clear the saved date, update previous timescale, and end zooming state after a tiny delay
+          setTimeout(() => {
+            scrollCenterDateRef.current = null
+            previousTimescaleRef.current = timescale
+            setIsZooming(false)
+          }, 16) // Clear after one more frame
+        })
+      })
+    })
 
     return () => {
       if (zoomRestoreTimeoutRef.current) {
         clearTimeout(zoomRestoreTimeoutRef.current)
       }
     }
-  }, [timescale, viewStart, dayWidth, isZooming])
+  }, [timescale, viewStart, dayWidth, isZooming, scrollCenterDateRef])
 
   return (
     <div
